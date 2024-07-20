@@ -2,6 +2,12 @@
 // Found in a gist by Dedmen Miller <dedmen@dedmen.de> at:
 // https://gist.github.com/dedmen/ab740ad9ebfde0403e8223480bef91ae
 
+
+using LibGit2Sharp;
+
+using System.Diagnostics;
+using System.Text;
+
 public class GitPktLine
 {
     // Git Pkt-line protocol
@@ -14,10 +20,13 @@ public class GitPktLine
     {
         // Size
         var packetLength = data.Length + 4 + 1; // + 4byte length, + terminating LF
+        var packet = System.Text.Encoding.ASCII.GetBytes(packetLength.ToString("x4"));
 
-        output.Write(System.Text.Encoding.ASCII.GetBytes(packetLength.ToString("x4")));
-        output.Write(System.Text.Encoding.ASCII.GetBytes(data));
-        output.Write(new []{(byte)'\n'}); // Terminating LF //#TODO this is optional.. its probably easier to just omit it. Including it in binary data is error, excluding it in text data is fine
+        output.Write(packet, 0, packet.Length);
+        var dataPacket = System.Text.Encoding.ASCII.GetBytes(data);
+        output.Write(dataPacket, 0, dataPacket.Length);
+        var terminatorChar = new[] { (byte)'\n' };
+        output.Write(terminatorChar, 0, terminatorChar.Length); // Terminating LF //#TODO this is optional.. its probably easier to just omit it. Including it in binary data is error, excluding it in text data is fine
 
         //{
         //    debugLog.Write(System.Text.Encoding.ASCII.GetBytes(packetLength.ToString("x4")));
@@ -31,8 +40,8 @@ public class GitPktLine
     {
         // Size
         var packetLength = bufferLength + 4 /*+ 1*/; // + 4byte length, + terminating LF
-
-        output.Write(System.Text.Encoding.ASCII.GetBytes(packetLength.ToString("x4")));
+        var packet = System.Text.Encoding.ASCII.GetBytes(packetLength.ToString("x4"));
+        output.Write(packet, 0, packet.Length);
         output.Write(data, 0, bufferLength);
         //output.Write(new[] { (byte)'\n' }); // Terminating LF
 
@@ -50,7 +59,7 @@ public class GitPktLine
         WritePacketInt(message, output);
         {
             output.Seek(0, SeekOrigin.Begin);
-            Console.WriteLine(System.Text.Encoding.ASCII.GetString(output.GetBuffer()));
+            Trace.TraceInformation(System.Text.Encoding.ASCII.GetString(output.GetBuffer()));
         }
 
         output.CopyTo(target);
@@ -68,20 +77,22 @@ public class GitPktLine
         Flush(output);
 
         output.Seek(0, SeekOrigin.Begin);
-        //Console.WriteLine(">" + System.Text.Encoding.ASCII.GetString(output.GetBuffer()));
+        //Trace.TraceInformation(">" + System.Text.Encoding.ASCII.GetString(output.GetBuffer()));
         output.CopyTo(target);
         target.Flush();
     }
 
     public static void Flush(Stream target)
     {
-        target.Write("0000"u8);
+        byte[] flushTerminator = Encoding.UTF8.GetBytes("0000");
+        target.Write(flushTerminator, 0, flushTerminator.Length);
         target.Flush();
     }
 
     public static void Delim(Stream target)
     {
-        target.Write("0001"u8);
+        byte[] delimiter = Encoding.UTF8.GetBytes("0001");
+        target.Write(delimiter, 0, delimiter.Length);
     }
 
     public static byte[] ReadMessage(Stream source, bool allowLF = true)
@@ -99,7 +110,7 @@ public class GitPktLine
             if (packetLength < 4)
             {
                 // Special packet, lets assume its a flush
-                //Console.WriteLine("<" + System.Text.Encoding.ASCII.GetString(pktLength));
+                //Trace.TraceInformation("<" + System.Text.Encoding.ASCII.GetString(pktLength));
                 //if (packetLength != 0)
                 //    Debugger.Break();
 
@@ -117,9 +128,9 @@ public class GitPktLine
 
                 pkt = new byte[packetLength - 1];
                 int offset = 0;
-                while (offset < packetLength-1) // Handle if data isn't avail yet, we know how large the packet will be
+                while (offset < packetLength - 1) // Handle if data isn't avail yet, we know how large the packet will be
                 {
-                    numRead = source.Read(pkt, offset, packetLength-1 - offset);
+                    numRead = source.Read(pkt, offset, packetLength - 1 - offset);
                     offset += numRead;
                 }
 
@@ -138,7 +149,7 @@ public class GitPktLine
 
                 //debugLog.Write(pkt);
 
-                //Console.WriteLine("<" + System.Text.Encoding.ASCII.GetString(pktLength) + System.Text.Encoding.ASCII.GetString(pkt));
+                //Trace.TraceInformation("<" + System.Text.Encoding.ASCII.GetString(pktLength) + System.Text.Encoding.ASCII.GetString(pkt));
             }
             else
             {
@@ -152,12 +163,12 @@ public class GitPktLine
 
                 //debugLog.Write(pkt);
 
-                //Console.WriteLine("<" + System.Text.Encoding.ASCII.GetString(pktLength) + " <binary>"); // allowLF is only false for expected binary data
+                //Trace.TraceInformation("<" + System.Text.Encoding.ASCII.GetString(pktLength) + " <binary>"); // allowLF is only false for expected binary data
             }
 
             return pkt;
         }
-        catch (System.FormatException ex)
+        catch (System.FormatException/* ex*/)
         {
             //debugLog.Flush(true);
             //var scratch = new byte[8192];
@@ -178,7 +189,7 @@ public class GitPktLine
             if (msg.Length == 0) // flush
                 break;
 
-            result.Add(Encoding.ASCII.GetString(msg));
+            result.Add(System.Text.Encoding.ASCII.GetString(msg));
         }
         return result;
     }
@@ -206,12 +217,12 @@ public class GitPktLine
         var sentLength = 0;
         do
         {
-            sentLength = input.Read(buffer);
+            sentLength = input.Read(buffer, 0, buffer.Length);
 
             if (sentLength > 0)
                 WritePacketInt(buffer, sentLength, target);
 
-            // Console.WriteLine($"S> {Encoding.ASCII.GetString(buffer)}");
+            // Trace.TraceInformation($"S> {Encoding.ASCII.GetString(buffer)}");
 
         } while (sentLength == buffer.Length);
 
@@ -225,7 +236,7 @@ public class GitPktLine
 
         foreach (var bytes in buffers)
         {
-            target.Write(bytes);
+            target.Write(bytes, 0, bytes.Length);
         }
     }
 }
@@ -237,12 +248,12 @@ public class LFSFilter : Filter
 
     public LFSFilter() : base("lfs", new[] { new FilterAttributeEntry("lfs") })
     {
+        //Trace.TraceInformation("LFSFilter default constructor");
         // We can start one filter process, and keep using it. Instead of starting/stopping for each file
     }
 
     protected override void Clean(string path, string root, Stream input, Stream output)
     {
-        //Console.WriteLine($"LFS Clean {path}");
         // The input buffer is only 65536 bytes large, this function will get called repeatedly for the same path, until all data is passed through
 
         // Run
@@ -253,6 +264,7 @@ public class LFSFilter : Filter
         // payload data
         GitPktLine.WriteStreamData(input, processFilterP.StandardInput.BaseStream);
 
+        //Trace.TraceInformation($"LFSFilter Clean path    = '{path}', root = '{root}'");
         // After we've sent all data, we'll go to Complete, send a Flush to signify end, and read the results
     }
 
@@ -263,24 +275,22 @@ public class LFSFilter : Filter
         // Now we can read outputs
         GitPktLine.ReadStreamData(processFilterP.StandardOutput.BaseStream, output);
 
-
-
         var status2 = GitPktLine.ReadMessagePacketList(processFilterP.StandardOutput.BaseStream); // status=success (Execution has finished)
 
-        //Console.WriteLine($"LFS Complete {path}");
+        Trace.TraceInformation($"LFSFilter Complete path = '{path}', root = '{root}'");
 
         output.Flush();
         output.Close();
 
         if (errorFlag || status2.First() != "status=success")
         {
-            throw new Exception($"LFS returned errors {status2.First()}");
+            throw new Exception($"LFSFilter ReadMessagePacketList returned errors {status2.First()}");
         }
     }
 
     protected override void Create(string path, string root, FilterMode mode)
     {
-        Console.WriteLine($"LFS Create {path} {mode}");
+        Trace.TraceInformation($"LFSFilter Create path = '{path}', root = '{root}', mode = '{mode}'");
 
         //GitPktLine.debugLog.Dispose();
         //GitPktLine.debugLog = new FileStream($"p:/log{Path.GetFileName(path)}", FileMode.Create);
@@ -304,7 +314,7 @@ public class LFSFilter : Filter
                 {
                     if (!string.IsNullOrEmpty(args.Data))
                     {
-                        Console.WriteLine($"LFS F E: {args.Data}");
+                        Trace.TraceInformation($"LFSFilter F E: {args.Data}");
                         errorFlag = true;
                     }
 
@@ -324,15 +334,15 @@ public class LFSFilter : Filter
 
 
                 // capabilities
-                GitPktLine.WriteMessagePacketList(new []{ "capability=clean", "capability=smudge" }, processFilterP.StandardInput.BaseStream);
+                GitPktLine.WriteMessagePacketList(new[] { "capability=clean", "capability=smudge" }, processFilterP.StandardInput.BaseStream);
                 var supportedCaps = GitPktLine.ReadMessagePacketList(processFilterP.StandardOutput.BaseStream);
 
                 // ready for commands now
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
+                Trace.TraceInformation(e.Message);
+                Trace.TraceInformation(e.StackTrace);
             }
         }
 
@@ -343,6 +353,7 @@ public class LFSFilter : Filter
     protected override void Initialize()
     {
         base.Initialize();
+        Trace.TraceInformation("LFSFilter Initialize");
     }
 
     protected override void Smudge(string path, string root, Stream input, Stream output)
@@ -355,6 +366,7 @@ public class LFSFilter : Filter
         // payload data
         GitPktLine.WriteStreamData(input, processFilterP.StandardInput.BaseStream);
 
+        //Trace.TraceInformation($"LFSFilter Smudge path    = '{path}', root = '{root}'");
         // After we've sent all data, we'll go to Complete, send a Flush to signify end, and read the results
     }
 
@@ -374,12 +386,12 @@ public class LFSFilter : Filter
         process.ErrorDataReceived += (sender, args) =>
         {
             if (!string.IsNullOrEmpty(args.Data))
-                Console.WriteLine($"LFS E: {args.Data}");
+                Trace.TraceInformation($"LFSFilter E: {args.Data}");
         };
         process.OutputDataReceived += (sender, args) =>
         {
             if (!string.IsNullOrEmpty(args.Data))
-                Console.WriteLine($"LFS O: {args.Data}");
+                Trace.TraceInformation($"LFSFilter O: {args.Data}");
         };
 
         process.EnableRaisingEvents = true;
@@ -406,17 +418,20 @@ public class LFSFilter : Filter
         process.StandardInput.Close();
 
         process.WaitForExit();
+        Trace.TraceInformation($"LFSFilter PrePush root      = {root}");
     }
 
     public static void PostCheckout(string root, string oldRef, string newRef)
     {
         var process = RunLFSProcess(root, $"post-checkout {oldRef} {newRef} 0");
         process.WaitForExit();
+        Trace.TraceInformation($"LFSFilter PostCheckout root = {root}, oldRef = {oldRef}, newRef = {newRef}");
     }
 
     public static void PostCommit(string root)
     {
         var process = RunLFSProcess(root, "post-commit");
         process.WaitForExit();
+        Trace.TraceInformation($"LFSFilter PostCommit root   = {root}");
     }
 }
