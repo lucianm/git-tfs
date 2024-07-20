@@ -478,7 +478,7 @@ namespace GitTfs.Core
             if (!destination.Directory.Exists)
                 destination.Directory.Create();
             if ((blob = _repository.Lookup<Blob>(sha)) != null)
-                using (Stream stream = blob.GetContentStream(new FilteringOptions(string.Empty)))
+                using (Stream stream = blob.GetContentStream(new FilteringOptions(outputFile))) // pass the actual file path to the filtering options instead of an empty string, to have registered "smudge" filters being triggered ("lfs" for example)
                 using (var outstream = File.Create(destination.FullName))
                     stream.CopyTo(outstream);
         }

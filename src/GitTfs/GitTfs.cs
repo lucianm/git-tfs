@@ -34,6 +34,7 @@ namespace GitTfs
         public int Run(IList<string> args)
         {
             InitializeGlobals();
+            var lfsFilterRegistration = LibGit2Sharp.GlobalSettings.RegisterFilter(new LFSFilter());
             _globals.CommandLineRun = "git tfs " + string.Join(" ", args);
             var command = ExtractCommand(args);
             var unparsedArgs = ParseOptions(command, args);
@@ -47,6 +48,7 @@ namespace GitTfs
             {
                 _authorsFileHelper.SaveAuthorFileInRepository(_globals.AuthorsFilePath, _globals.GitDir);
             }
+            LibGit2Sharp.GlobalSettings.DeregisterFilter(lfsFilterRegistration);
             return exitCode;
         }
 
