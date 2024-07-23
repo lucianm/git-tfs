@@ -299,6 +299,14 @@ public class LFSFilter : Filter
         {
             try
             {
+                // adjust for the situation when running in a console using the UTF-8 code page 65001
+                // like it may happen when invoked from a GitExtensions "script", as suggested by
+                // Kalle Olavi Niemitalo here: https://github.com/git-lfs/git-lfs/issues/5831#issuecomment-2244261656
+                if (Console.InputEncoding.CodePage == 65001)
+                {
+                    Console.InputEncoding = new UTF8Encoding(false);
+                }
+
                 // launch git-lfs
                 processFilterP = new Process();
                 processFilterP.StartInfo.FileName = "git-lfs";
