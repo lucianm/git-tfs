@@ -243,7 +243,7 @@ public class GitPktLine
 
 public class LFSFilter : Filter
 {
-    private Process processFilterP;
+    private Process processFilterP = null;
     private bool errorFlag = false;
 
     public LFSFilter() : base("lfs", new[] { new FilterAttributeEntry("lfs") })
@@ -277,7 +277,7 @@ public class LFSFilter : Filter
 
         var status2 = GitPktLine.ReadMessagePacketList(processFilterP.StandardOutput.BaseStream); // status=success (Execution has finished)
 
-        Trace.TraceInformation($"LFSFilter Complete path = '{path}', root = '{root}'");
+        // Trace.TraceInformation($"LFSFilter Complete path = '{path}', root = '{root}'");
 
         output.Flush();
         output.Close();
@@ -290,7 +290,8 @@ public class LFSFilter : Filter
 
     protected override void Create(string path, string root, FilterMode mode)
     {
-        Trace.TraceInformation($"LFSFilter Create path = '{path}', root = '{root}', mode = '{mode}'");
+        //Trace.TraceInformation($"LFSFilter Create path = '{path}', root = '{root}', mode = '{mode}'");
+        Trace.TraceInformation($"LFSFilter Create: applying '{mode}' filter to '{path}'");
 
         //GitPktLine.debugLog.Dispose();
         //GitPktLine.debugLog = new FileStream($"p:/log{Path.GetFileName(path)}", FileMode.Create);
@@ -299,41 +300,8 @@ public class LFSFilter : Filter
         {
             try
             {
-                // adjust for the situation when running in a console using the UTF-8 code page 65001
-                // like it may happen when invoked from a GitExtensions "script", as suggested by
-                // Kalle Olavi Niemitalo here: https://github.com/git-lfs/git-lfs/issues/5831#issuecomment-2244261656
-                if (Console.InputEncoding.CodePage == 65001)
-                {
-                    Console.InputEncoding = new UTF8Encoding(false);
-                }
-
                 // launch git-lfs
-                processFilterP = new Process();
-                processFilterP.StartInfo.FileName = "git-lfs";
-                processFilterP.StartInfo.Arguments = "filter-process";
-                processFilterP.StartInfo.WorkingDirectory = root;
-                processFilterP.StartInfo.RedirectStandardInput = true;
-                processFilterP.StartInfo.RedirectStandardOutput = true;
-                processFilterP.StartInfo.RedirectStandardError = true;
-                processFilterP.StartInfo.CreateNoWindow = true;
-                processFilterP.StartInfo.UseShellExecute = false;
-
-                processFilterP.ErrorDataReceived += (sender, args) =>
-                {
-                    if (!string.IsNullOrEmpty(args.Data))
-                    {
-                        Trace.TraceInformation($"LFSFilter F E: {args.Data}");
-                        errorFlag = true;
-                    }
-
-                };
-
-                processFilterP.EnableRaisingEvents = true;
-
-                processFilterP.Start();
-
-                processFilterP.BeginErrorReadLine();
-
+                (processFilterP, errorFlag) = RunLFSProcess(root, $"filter-process", false);
 
                 // Init // https://git-scm.com/docs/long-running-process-protocol
 
@@ -378,8 +346,17 @@ public class LFSFilter : Filter
         // After we've sent all data, we'll go to Complete, send a Flush to signify end, and read the results
     }
 
-    private static Process RunLFSProcess(string root, string command)
+    private static (Process, bool) RunLFSProcess(string root, string command, bool bAsyncOutput = true)
     {
+        // adjust for the situation when running in a console using the UTF-8 code page 65001
+        // like it may happen when invoked from a GitExtensions "script", as suggested by
+        // Kalle Olavi Niemitalo here: https://github.com/git-lfs/git-lfs/issues/5831#issuecomment-2244261656
+        if (Console.InputEncoding.CodePage == 65001)
+        {
+            Console.InputEncoding = new UTF8Encoding(false);
+        }
+
+        bool errFlag = false;
         // launch git-lfs
         var process = new Process();
         process.StartInfo.FileName = "git-lfs";
@@ -388,27 +365,41 @@ public class LFSFilter : Filter
         process.StartInfo.RedirectStandardInput = true;
         process.StartInfo.RedirectStandardOutput = true;
         process.StartInfo.RedirectStandardError = true;
-        process.StartInfo.CreateNoWindow = false;
+        process.StartInfo.CreateNoWindow = !bAsyncOutput;
         process.StartInfo.UseShellExecute = false;
 
         process.ErrorDataReceived += (sender, args) =>
         {
             if (!string.IsNullOrEmpty(args.Data))
+            {
                 Trace.TraceInformation($"LFSFilter E: {args.Data}");
+                errFlag = true;
+            }
         };
-        process.OutputDataReceived += (sender, args) =>
+
+        if (bAsyncOutput)
         {
-            if (!string.IsNullOrEmpty(args.Data))
-                Trace.TraceInformation($"LFSFilter O: {args.Data}");
-        };
+            process.OutputDataReceived += (sender, args) =>
+            {
+                if (!string.IsNullOrEmpty(args.Data))
+                {
+                    Trace.TraceInformation($"LFSFilter O: {args.Data}");
+                    errFlag = true;
+                }
+            };
+        }
 
         process.EnableRaisingEvents = true;
 
         process.Start();
 
         process.BeginErrorReadLine();
-        process.BeginOutputReadLine();
-        return process;
+
+        if (bAsyncOutput)
+        {
+            process.BeginOutputReadLine();
+        }
+        return (process, errFlag);
     }
 
 
@@ -416,7 +407,7 @@ public class LFSFilter : Filter
 
     public static void PrePush(string root, IEnumerable<PushUpdate> updates)
     {
-        var process = RunLFSProcess(root, $"pre-push origin");
+        (var process, bool errFlag) = RunLFSProcess(root, $"pre-push origin");
 
         foreach (var update in updates)
         {
@@ -431,14 +422,14 @@ public class LFSFilter : Filter
 
     public static void PostCheckout(string root, string oldRef, string newRef)
     {
-        var process = RunLFSProcess(root, $"post-checkout {oldRef} {newRef} 0");
+        (var process, bool errFlag) = RunLFSProcess(root, $"post-checkout {oldRef} {newRef} 0");
         process.WaitForExit();
         Trace.TraceInformation($"LFSFilter PostCheckout root = {root}, oldRef = {oldRef}, newRef = {newRef}");
     }
 
     public static void PostCommit(string root)
     {
-        var process = RunLFSProcess(root, "post-commit");
+        (var process, bool errFlag) = RunLFSProcess(root, "post-commit");
         process.WaitForExit();
         Trace.TraceInformation($"LFSFilter PostCommit root   = {root}");
     }
