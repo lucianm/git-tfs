@@ -396,8 +396,8 @@ namespace GitTfs.Core
 
         public IGitTreeBuilder GetTreeBuilder(string commit)
             => commit == null
-                ? new GitTreeBuilder(_repository.ObjectDatabase)
-                : new GitTreeBuilder(_repository.ObjectDatabase, _repository.Lookup<Commit>(commit).Tree);
+                ? new GitTreeBuilder(_repository.ObjectDatabase, _repository.Info.Path)
+                : new GitTreeBuilder(_repository.ObjectDatabase, _repository.Info.Path, _repository.Lookup<Commit>(commit).Tree);
 
         public string GetCommitMessage(string head, string parentCommitish)
         {
@@ -705,7 +705,7 @@ namespace GitTfs.Core
             {
                 Trace.TraceWarning("warning: the .gitignore file specified '{0}' does not exist!", pathToGitIgnoreFile);
             }
-            var gitTreeBuilder = new GitTreeBuilder(_repository.ObjectDatabase);
+            var gitTreeBuilder = new GitTreeBuilder(_repository.ObjectDatabase, _repository.Info.Path);
             gitTreeBuilder.Add(".gitignore", pathToGitIgnoreFile, LibGit2Sharp.Mode.NonExecutableFile);
             var tree = gitTreeBuilder.GetTree();
             var signature = new Signature("git-tfs", "git-tfs@noreply.com", new DateTimeOffset(2000, 1, 1, 0, 0, 0, new TimeSpan(0)));

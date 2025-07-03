@@ -59,7 +59,7 @@ public class GitPktLine
         WritePacketInt(message, output);
         {
             output.Seek(0, SeekOrigin.Begin);
-            Trace.TraceInformation(System.Text.Encoding.ASCII.GetString(output.GetBuffer()));
+            Trace.TraceInformation(System.Text.Encoding.ASCII.GetString(output.ToArray()));
         }
 
         output.CopyTo(target);
@@ -95,103 +95,84 @@ public class GitPktLine
         target.Write(delimiter, 0, delimiter.Length);
     }
 
-    public static byte[] ReadMessage(Stream source, bool allowLF = true)
+    public static byte[] ReadMessage(Stream source, bool stripNewline)
     {
-        var pktLength = new byte[4];
-        var numRead = source.Read(pktLength, 0, 4);
-        if (numRead == 0) return Array.Empty<byte>();
-        //debugLog.Write(pktLength);
+        if (source == null)
+            throw new ArgumentNullException(nameof(source));
+
+        byte[] pktLength = new byte[4];
 
         try
         {
-            var packetLength = Convert.ToInt32(System.Text.Encoding.ASCII.GetString(pktLength), 16);
-
-
-            if (packetLength < 4)
-            {
-                // Special packet, lets assume its a flush
-                //Trace.TraceInformation("<" + System.Text.Encoding.ASCII.GetString(pktLength));
-                //if (packetLength != 0)
-                //    Debugger.Break();
-
-                //#TODO handle flush and others?
-                return Array.Empty<byte>();
-            }
-
-            packetLength -= 4; /* deduct the 4byte length itself */
-
-            byte[] pkt;
-
-            if (allowLF)
-            {
-                // Usually terminated by a LF, lets assume it'll be there and we'll want to skip it
-
-                pkt = new byte[packetLength - 1];
-                int offset = 0;
-                while (offset < packetLength - 1) // Handle if data isn't avail yet, we know how large the packet will be
-                {
-                    numRead = source.Read(pkt, offset, packetLength - 1 - offset);
-                    offset += numRead;
-                }
-
-
-                var lastByte = source.ReadByte();
-
-                if (lastByte != '\n')
-                {
-                    // Oh its not LF terminated, welp that's a bummer, we have to put into a new buffer
-
-                    var newArray = new byte[packetLength];
-                    Array.Copy(pkt, 0, newArray, 0, packetLength - 1);
-                    newArray[packetLength - 1] = (byte)lastByte;
-                    pkt = newArray;
-                }
-
-                //debugLog.Write(pkt);
-
-                //Trace.TraceInformation("<" + System.Text.Encoding.ASCII.GetString(pktLength) + System.Text.Encoding.ASCII.GetString(pkt));
-            }
-            else
-            {
-                pkt = new byte[packetLength];
-                int offset = 0;
-                while (offset < packetLength) // Handle if data isn't avail yet, we know how large the packet will be
-                {
-                    numRead = source.Read(pkt, offset, packetLength - offset);
-                    offset += numRead;
-                }
-
-                //debugLog.Write(pkt);
-
-                //Trace.TraceInformation("<" + System.Text.Encoding.ASCII.GetString(pktLength) + " <binary>"); // allowLF is only false for expected binary data
-            }
-
-            return pkt;
+            ReadExactly(source, pktLength, 0, 4);
         }
-        catch (System.FormatException/* ex*/)
+        catch (EndOfStreamException)
         {
-            //debugLog.Flush(true);
-            //var scratch = new byte[8192];
-            //numRead = source.Read(scratch, 0, 8192);
-            //Debugger.Break();
+            return Array.Empty<byte>();
         }
 
-        return null;
+        string header = System.Text.Encoding.ASCII.GetString(pktLength);
+
+        int packetLength;
+
+        try
+        {
+            packetLength = Convert.ToInt32(header, 16);
+        }
+        catch (FormatException ex)
+        {
+            throw new InvalidDataException(
+                $"Invalid pkt-line header '{header}'",
+                ex);
+        }
+
+        // flush packet
+        if (packetLength == 0)
+            return Array.Empty<byte>();
+
+        if (packetLength < 4)
+        {
+            throw new InvalidDataException(
+                $"Invalid pkt-line length {packetLength}");
+        }
+
+        int payloadLength = packetLength - 4;
+
+        byte[] payload = ReadExactly(source, payloadLength);
+
+        if (stripNewline && payload.Length > 0 && payload[payload.Length - 1] == (byte)'\n')
+        {
+            Array.Resize(ref payload, payload.Length - 1);
+        }
+
+        return payload;
     }
 
-    public static IEnumerable<string> ReadMessagePacketList(Stream source)
+    public static List<string> ReadMessagePacketList(Stream source)
     {
-        var result = new List<string>();
+        if (source == null)
+            throw new ArgumentNullException(nameof(source));
+
+        var messages = new List<string>();
+
         while (true)
         {
-            var msg = ReadMessage(source, true);
+            byte[] msg = ReadMessage(source, true);
 
-            if (msg.Length == 0) // flush
+            if (msg == null)
+            {
+                throw new InvalidDataException(
+                    "Received null pkt-line message.");
+            }
+
+            // flush packet terminates list
+            if (msg.Length == 0)
                 break;
 
-            result.Add(System.Text.Encoding.ASCII.GetString(msg));
+            messages.Add(System.Text.Encoding.UTF8.GetString(msg));
         }
-        return result;
+
+        return messages;
     }
 
     public static IEnumerable<byte[]> ReadMessagePacketListBinary(Stream source)
@@ -224,7 +205,7 @@ public class GitPktLine
 
             // Trace.TraceInformation($"S> {Encoding.ASCII.GetString(buffer)}");
 
-        } while (sentLength == buffer.Length);
+        } while (sentLength > 0);
 
         target.Flush();
     }
@@ -239,12 +220,35 @@ public class GitPktLine
             target.Write(bytes, 0, bytes.Length);
         }
     }
+
+    private static void ReadExactly(Stream source, byte[] buffer, int offset, int count)
+    {
+        while (count > 0)
+        {
+            int n = source.Read(buffer, offset, count);
+
+            if (n == 0)
+            {
+                throw new EndOfStreamException(
+                    "Unexpected EOF while reading pkt-line stream.");
+            }
+
+            offset += n;
+            count -= n;
+        }
+    }
+
+    private static byte[] ReadExactly(Stream source, int count)
+    {
+        var buffer = new byte[count];
+        ReadExactly(source, buffer, 0, count);
+        return buffer;
+    }
 }
 
 public class LFSFilter : Filter
 {
     private Process processFilterP = null;
-    private bool errorFlag = false;
 
     public LFSFilter() : base("lfs", new[] { new FilterAttributeEntry("lfs") })
     {
@@ -282,7 +286,7 @@ public class LFSFilter : Filter
         output.Flush();
         output.Close();
 
-        if (errorFlag || status2.First() != "status=success")
+        if (status2.First() != "status=success")
         {
             throw new Exception($"LFSFilter ReadMessagePacketList returned errors {status2.First()}");
         }
@@ -301,7 +305,7 @@ public class LFSFilter : Filter
             try
             {
                 // launch git-lfs
-                (processFilterP, errorFlag) = RunLFSProcess(root, $"filter-process", false);
+                processFilterP = RunLFSProcess(root, $"filter-process", false);
 
                 // Init // https://git-scm.com/docs/long-running-process-protocol
 
@@ -346,7 +350,7 @@ public class LFSFilter : Filter
         // After we've sent all data, we'll go to Complete, send a Flush to signify end, and read the results
     }
 
-    private static (Process, bool) RunLFSProcess(string root, string command, bool bAsyncOutput = true)
+    private static Process RunLFSProcess(string root, string command, bool bAsyncOutput = true)
     {
         // adjust for the situation when running in a console using the UTF-8 code page 65001
         // like it may happen when invoked from a GitExtensions "script", as suggested by
@@ -356,7 +360,6 @@ public class LFSFilter : Filter
             Console.InputEncoding = new UTF8Encoding(false);
         }
 
-        bool errFlag = false;
         // launch git-lfs
         var process = new Process();
         process.StartInfo.FileName = "git-lfs";
@@ -365,7 +368,7 @@ public class LFSFilter : Filter
         process.StartInfo.RedirectStandardInput = true;
         process.StartInfo.RedirectStandardOutput = true;
         process.StartInfo.RedirectStandardError = true;
-        process.StartInfo.CreateNoWindow = !bAsyncOutput;
+        process.StartInfo.CreateNoWindow = true;
         process.StartInfo.UseShellExecute = false;
 
         process.ErrorDataReceived += (sender, args) =>
@@ -373,7 +376,6 @@ public class LFSFilter : Filter
             if (!string.IsNullOrEmpty(args.Data))
             {
                 Trace.TraceInformation($"LFSFilter E: {args.Data}");
-                errFlag = true;
             }
         };
 
@@ -384,7 +386,6 @@ public class LFSFilter : Filter
                 if (!string.IsNullOrEmpty(args.Data))
                 {
                     Trace.TraceInformation($"LFSFilter O: {args.Data}");
-                    errFlag = true;
                 }
             };
         }
@@ -399,7 +400,7 @@ public class LFSFilter : Filter
         {
             process.BeginOutputReadLine();
         }
-        return (process, errFlag);
+        return process;
     }
 
 
@@ -407,7 +408,7 @@ public class LFSFilter : Filter
 
     public static void PrePush(string root, IEnumerable<PushUpdate> updates)
     {
-        (var process, bool errFlag) = RunLFSProcess(root, $"pre-push origin");
+        var process = RunLFSProcess(root, $"pre-push origin");
 
         foreach (var update in updates)
         {
@@ -422,14 +423,14 @@ public class LFSFilter : Filter
 
     public static void PostCheckout(string root, string oldRef, string newRef)
     {
-        (var process, bool errFlag) = RunLFSProcess(root, $"post-checkout {oldRef} {newRef} 0");
+        var process = RunLFSProcess(root, $"post-checkout {oldRef} {newRef} 0");
         process.WaitForExit();
         Trace.TraceInformation($"LFSFilter PostCheckout root = {root}, oldRef = {oldRef}, newRef = {newRef}");
     }
 
     public static void PostCommit(string root)
     {
-        (var process, bool errFlag) = RunLFSProcess(root, "post-commit");
+        var process = RunLFSProcess(root, "post-commit");
         process.WaitForExit();
         Trace.TraceInformation($"LFSFilter PostCommit root   = {root}");
     }
