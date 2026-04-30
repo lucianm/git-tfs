@@ -9,7 +9,7 @@ source https://api.nuget.org/v3/index.json
 //https://github.com/git-tfs/git-tfs/blob/master/doc/paket.md
 
 nuget nlog
-nuget LibGit2Sharp
+nuget LibGit2Sharp 0.31.0
 nuget Moq
 nuget structuremap 4.7.1
 nuget Moq.AutoMock
