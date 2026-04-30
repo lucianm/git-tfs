@@ -7,7 +7,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("list-remote-branches")]
     [Description("list-remote-branches tfs-url-or-instance-name \n       git tfs list-remote-branches http://myTfsServer:8080/tfs/TfsRepository\n")]
     public class ListRemoteBranches : GitTfsCommand
     {

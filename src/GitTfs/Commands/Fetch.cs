@@ -7,7 +7,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("fetch")]
     [Description("fetch [options] [tfs-remote-id]...")]
     [RequiresValidGitRepository]
     public class Fetch : GitTfsCommand

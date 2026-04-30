@@ -1,18 +1,20 @@
-﻿using GitTfs.Commands;
+using GitTfs.Commands;
 using GitTfs.Core;
 using Moq;
-using StructureMap.AutoMocking;
+using Moq.AutoMock;
 using Xunit;
 
 namespace GitTfs.Test.Commands
 {
     public class ShelveDeleteTest : BaseTest
     {
-        private readonly MoqAutoMocker<ShelveDelete> _mocks;
+        private readonly AutoMocker _mocks;
+        private readonly ShelveDelete _classUnderTest;
 
         public ShelveDeleteTest()
         {
-            _mocks = new MoqAutoMocker<ShelveDelete>();
+            _mocks = new AutoMocker();
+            _classUnderTest = _mocks.CreateInstance<ShelveDelete>();
         }
 
         private void InitMocks4Tests(out Mock<IGitRepository> gitRepositoryMock, out Mock<IGitTfsRemote> remoteMock)
@@ -33,7 +35,7 @@ namespace GitTfs.Test.Commands
         {
             const string SHELVESET_NAME = "";
 
-            Assert.NotEqual(GitTfsExitCodes.OK, _mocks.ClassUnderTest.Run(SHELVESET_NAME));
+            Assert.NotEqual(GitTfsExitCodes.OK, _classUnderTest.Run(SHELVESET_NAME));
         }
 
         [Fact]
@@ -44,7 +46,7 @@ namespace GitTfs.Test.Commands
             InitMocks4Tests(out _, out var remote);
             remote.Setup(r => r.HasShelveset(NONEXISTENT_SHELVESET_NAME)).Returns(false);
 
-            Assert.NotEqual(GitTfsExitCodes.OK, _mocks.ClassUnderTest.Run(NONEXISTENT_SHELVESET_NAME));
+            Assert.NotEqual(GitTfsExitCodes.OK, _classUnderTest.Run(NONEXISTENT_SHELVESET_NAME));
         }
 
         [Fact]
@@ -54,7 +56,7 @@ namespace GitTfs.Test.Commands
             InitMocks4Tests(out var repository, out var remote);
             remote.Setup(r => r.HasShelveset(It.IsAny<string>())).Returns(true);
 
-            _mocks.ClassUnderTest.Run(SHELVESET_NAME);
+            _classUnderTest.Run(SHELVESET_NAME);
 
             remote.Verify(r => r.DeleteShelveset(SHELVESET_NAME), Times.Once);
         }

@@ -4,7 +4,6 @@ using GitTfs.Util;
 
 namespace GitTfs.Commands
 {
-    [PluggableWithAliases("checkintool", "ct")]
     [Description("checkintool [options] [ref-to-checkin]")]
     [RequiresValidGitRepository]
     public class CheckinTool : CheckinBase

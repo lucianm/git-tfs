@@ -6,7 +6,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("shelve-delete")]
     [Description("shelve-delete shelveset-name")]
     [RequiresValidGitRepository]
     public class ShelveDelete : GitTfsCommand

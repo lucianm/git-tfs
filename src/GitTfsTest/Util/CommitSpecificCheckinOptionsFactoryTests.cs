@@ -1,7 +1,7 @@
 ﻿using GitTfs.Commands;
 using GitTfs.Util;
 using Xunit;
-using StructureMap.AutoMocking;
+using Moq.AutoMock;
 using GitTfs.Core;
 using Moq;
 
@@ -9,11 +9,12 @@ namespace GitTfs.Test.Util
 {
     public class CommitSpecificCheckinOptionsFactoryTests : BaseTest
     {
-        private readonly MoqAutoMocker<CheckinOptionsFactory> mocks;
+        private readonly AutoMocker mocks;
 
         public CommitSpecificCheckinOptionsFactoryTests()
         {
-            mocks = new MoqAutoMocker<CheckinOptionsFactory>();
+            mocks = new AutoMocker();
+            mocks.GetMock<Globals>().SetupAllProperties();
             mocks.Get<Globals>().Repository = mocks.Get<IGitRepository>();
         }
 

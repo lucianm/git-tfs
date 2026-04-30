@@ -4,7 +4,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("diagnostics")]
     public class Diagnostics : GitTfsCommand
     {
         private readonly IContainer _container;

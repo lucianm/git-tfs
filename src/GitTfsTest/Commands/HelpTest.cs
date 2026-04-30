@@ -1,5 +1,7 @@
 ﻿using GitTfs.Commands;
-using StructureMap.AutoMocking;
+using GitTfs.Util;
+using Moq.AutoMock;
+using StructureMap;
 using NDesk.Options;
 using Xunit;
 using NLog;
@@ -11,11 +13,18 @@ namespace GitTfs.Test.Commands
 {
     public class HelpTest : BaseTest
     {
-        private readonly MoqAutoMocker<Help> mocks;
+        private readonly AutoMocker mocks;
+        private readonly Help helpCommand;
 
         public HelpTest()
         {
-            mocks = new MoqAutoMocker<Help>();
+            mocks = new AutoMocker();
+            var container = new Container(cfg =>
+            {
+                cfg.For<GitTfsCommand>().Add<TestCommand>().Named("test");
+            });
+            mocks.Use<IContainer>(container);
+            helpCommand = mocks.CreateInstance<Help>();
         }
 
         public MemoryTarget GetTestLogger()
@@ -38,9 +47,7 @@ namespace GitTfs.Test.Commands
         {
             var memoryTarget = GetTestLogger();
 
-            mocks.Container.PluginGraph.FindFamily(typeof(GitTfsCommand)).AddType(typeof(TestCommand), "test");
-            mocks.Container.Inject<GitTfsCommand>("test", new TestCommand());
-            mocks.ClassUnderTest.Run();
+            helpCommand.Run();
 
             memoryTarget.Logs[0].Equals("Usage: git-tfs [command] [options]");
             memoryTarget.Logs[1].Contains("test");
@@ -52,10 +59,7 @@ namespace GitTfs.Test.Commands
         public void ShouldWriteCommandHelp()
         {
             var memoryTarget = GetTestLogger();
-            mocks.Container.PluginGraph.CreateFamily(typeof(GitTfsCommand));
-            mocks.Container.PluginGraph.FindFamily(typeof(GitTfsCommand)).AddType(typeof(TestCommand), "test");
-            mocks.Container.Inject<GitTfsCommand>("test", new TestCommand());
-            mocks.ClassUnderTest.Run(new[] { "test" });
+            helpCommand.Run(new[] { "test" });
 
             memoryTarget.Logs[0].Equals("Usage: git-tfs test [options]");
         }

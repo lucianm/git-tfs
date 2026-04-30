@@ -8,7 +8,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("init")]
     [Description("init [options] tfs-url-or-instance-name repository-path [git-repository]")]
     public class Init : GitTfsCommand
     {

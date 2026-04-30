@@ -6,7 +6,6 @@ using GitTfs.Core;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("info")]
     [Description("info")]
     [RequiresValidGitRepository]
     public class Info : GitTfsCommand

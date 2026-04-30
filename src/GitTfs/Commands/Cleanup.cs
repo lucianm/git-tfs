@@ -4,7 +4,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("cleanup")]
     [RequiresValidGitRepository]
     public class Cleanup : GitTfsCommand
     {

@@ -6,7 +6,6 @@ using GitTfs.Core;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("unshelve")]
     [Description("unshelve [options] shelve-name destination-branch")]
     [RequiresValidGitRepository]
     public class Unshelve : GitTfsCommand

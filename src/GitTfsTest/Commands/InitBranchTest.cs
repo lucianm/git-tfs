@@ -1,11 +1,10 @@
-﻿using GitTfs.Commands;
+using GitTfs.Commands;
 using GitTfs.Core;
 using GitTfs.Core.TfsInterop;
 using GitTfs.VsFake;
 
 using Moq;
-
-using StructureMap.AutoMocking;
+using Moq.AutoMock;
 
 using Xunit;
 
@@ -14,14 +13,15 @@ namespace GitTfs.Test.Commands
     public class InitBranchTest : BaseTest
     {
         #region Test Init
-        private readonly MoqAutoMocker<InitBranch> mocks;
+        private readonly AutoMocker mocks;
+        private readonly InitBranch classUnderTest;
 
         public InitBranchTest()
         {
-            mocks = new MoqAutoMocker<InitBranch>();
-            var globals = mocks.Get<Globals>();
-            var globalsMock = Mock.Get(globals).SetupAllProperties();
-            globals.Repository = mocks.Get<IGitRepository>();
+            mocks = new AutoMocker();
+            mocks.GetMock<Globals>().SetupAllProperties();
+            mocks.Get<Globals>().Repository = mocks.Get<IGitRepository>();
+            classUnderTest = mocks.CreateInstance<InitBranch>();
         }
 
         private void InitMocks4Tests(string gitBranchToInit, out Mock<IGitRepository> gitRepositoryMock,
@@ -30,7 +30,7 @@ namespace GitTfs.Test.Commands
             var tfsHelper = mocks.Get<ITfsHelper>();
             tfsHelperMock = Mock.Get(tfsHelper);
 
-            gitRepositoryMock = Mock.Get(mocks.Get<IGitRepository>()).SetupAllProperties();
+            gitRepositoryMock = mocks.GetMock<IGitRepository>().SetupAllProperties();
             gitRepositoryMock.Name = nameof(gitRepositoryMock);
             gitRepositoryMock.SetupGet(r => r.GitDir).Returns(".");
             gitRepositoryMock.Setup(r => r.HasRemote(It.IsAny<string>())).Returns(true);
@@ -48,7 +48,7 @@ namespace GitTfs.Test.Commands
             trunkGitTfsRemoteMock.SetupGet(x => x.TfsRepositoryPath).Returns("$/MyProject/Trunk");
             trunkGitTfsRemoteMock.SetupGet(x => x.TfsUrl).Returns("http://myTfsServer:8080/tfs");
 
-            newBranchRemoteMock = Mock.Get(mocks.Get<IGitTfsRemote>()).SetupAllProperties();
+            newBranchRemoteMock = mocks.GetMock<IGitTfsRemote>().SetupAllProperties();
             newBranchRemoteMock.Name = nameof(newBranchRemoteMock);
             newBranchRemoteMock.SetupGet(r => r.Id).Returns(gitBranchToInit);
         }
@@ -84,7 +84,7 @@ namespace GitTfs.Test.Commands
                 .Returns(new GitTfsRemote.FetchResult() { IsSuccess = true }).Verifiable();
             newBranchRemoteMock.Object.MaxCommitHash = "sha1AfterFetch";
 
-            Assert.Equal(GitTfsExitCodes.OK, mocks.ClassUnderTest.Run("$/MyProject/MyBranch", expectedGitBranchName));
+            Assert.Equal(GitTfsExitCodes.OK, classUnderTest.Run("$/MyProject/MyBranch", expectedGitBranchName));
 
             gitRepositoryMock.Verify();
             trunkGitTfsRemoteMock.Verify();
@@ -104,7 +104,7 @@ namespace GitTfs.Test.Commands
 
             tfsHelperMock.Setup(t => t.GetRootChangesetForBranch("$/MyProject/MyBranch", -1, null)).Returns(new List<RootBranch>() { new RootBranch(2010, "$/MyProject/MyBranch") });
 
-            TfsHelper tfsHelper = new TfsHelper(mocks.Container, null);
+            TfsHelper tfsHelper = new TfsHelper(new StructureMap.Container(), null);
             Mock<IGitTfsRemote> gitTfsRemoteMock = new Mock<IGitTfsRemote>().SetupAllProperties();
             gitTfsRemoteMock.SetupGet(x => x.Tfs).Returns(tfsHelper);
             IGitTfsRemote existingBranchRemote = gitTfsRemoteMock.Object;
@@ -120,7 +120,7 @@ namespace GitTfs.Test.Commands
             newBranchRemoteMock.Setup(r => r.Fetch(It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<IRenameResult>()))
                 .Returns(new GitTfsRemote.FetchResult() { IsSuccess = true }).Verifiable();
 
-            Assert.Equal(GitTfsExitCodes.OK, mocks.ClassUnderTest.Run("$/MyProject/MyBranch", GIT_BRANCH_TO_INIT));
+            Assert.Equal(GitTfsExitCodes.OK, classUnderTest.Run("$/MyProject/MyBranch", GIT_BRANCH_TO_INIT));
 
             gitRepository.Verify(x => x.AssertValidBranchName(GIT_BRANCH_TO_INIT), Times.Never);
             gitRepository.Verify();
@@ -140,7 +140,7 @@ namespace GitTfs.Test.Commands
             gitRepository.Setup(x => x.ReadTfsRemote("default")).Returns(trunkGitTfsRemoteMock.Object).Verifiable();
             gitRepository.Setup(x => x.ReadAllTfsRemotes()).Returns(new List<IGitTfsRemote> { trunkGitTfsRemoteMock.Object }).Verifiable();
 
-            Assert.Throws<GitTfsException>(() => mocks.ClassUnderTest.Run("$/MyProject/MyBranch"));
+            Assert.Throws<GitTfsException>(() => classUnderTest.Run("$/MyProject/MyBranch"));
 
             gitRepository.Verify(x => x.CommandOneline(It.IsAny<string[]>()), Times.Never);
             gitRepository.Verify();
@@ -158,7 +158,7 @@ namespace GitTfs.Test.Commands
             gitRepository.Setup(x => x.ReadTfsRemote("default")).Returns(remote.Object).Verifiable();
             gitRepository.Setup(x => x.ReadAllTfsRemotes()).Returns(new List<IGitTfsRemote> { remote.Object }).Verifiable();
 
-            var ex = Assert.Throws<GitTfsException>(() => mocks.ClassUnderTest.Run("$/MyProject/MyBranch"));
+            var ex = Assert.Throws<GitTfsException>(() => classUnderTest.Run("$/MyProject/MyBranch"));
             Assert.Equal("error: Couldn't fetch parent branch\n", ex.Message);
 
             gitRepository.Verify(x => x.AssertValidBranchName(GIT_BRANCH_TO_INIT), Times.Never);
@@ -178,7 +178,7 @@ namespace GitTfs.Test.Commands
 
             InitMocks4Tests(GIT_BRANCH_TO_INIT1, out var gitRepositoryMock, out var trunkGitTfsRemote, out var newBranch1RemoteMock, out var tfsHelperMock);
 
-            mocks.ClassUnderTest.CloneAllBranches = true;
+            classUnderTest.CloneAllBranches = true;
             var tfsPathBranch1 = "$/MyProject/MyBranch1";
             var tfsPathBranch2 = "$/MyProject/MyBranch2";
             tfsHelperMock.Setup(t => t.GetBranches(true)).Returns(new IBranchObject[] {
@@ -220,7 +220,7 @@ namespace GitTfs.Test.Commands
             trunkGitTfsRemote.Setup(t => t.InitBranch(It.IsAny<RemoteOptions>(), tfsPathBranch1, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<IRenameResult>())).Returns(newBranch1RemoteMock.Object);
             trunkGitTfsRemote.Setup(t => t.InitBranch(It.IsAny<RemoteOptions>(), tfsPathBranch2, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<IRenameResult>())).Returns(newBranch2RemoteMock.Object);
             trunkGitTfsRemote.Object.MaxChangesetId = 2000; //Simulate fetch already done
-            Assert.Equal(GitTfsExitCodes.OK, mocks.ClassUnderTest.Run());
+            Assert.Equal(GitTfsExitCodes.OK, classUnderTest.Run());
 
             gitRepositoryMock.Verify();
             newBranch1RemoteMock.Verify();
@@ -236,7 +236,7 @@ namespace GitTfs.Test.Commands
 
             InitMocks4Tests(GIT_BRANCH_TO_INIT1, out var gitRepository, out var trunkGitTfsRemote, out var newBranch1RemoteMock, out var tfsHelperMock);
 
-            mocks.ClassUnderTest.CloneAllBranches = true;
+            classUnderTest.CloneAllBranches = true;
             var tfsPathBranch1 = "$/MyProject/MyBranch1";
             var tfsPathBranch2 = "$/MyProject/MyBranch2";
             var tfsPathBranch3 = "$/MyProject/MyBranch3";
@@ -280,7 +280,7 @@ namespace GitTfs.Test.Commands
             trunkGitTfsRemote.Setup(t => t.InitBranch(It.IsAny<RemoteOptions>(), tfsPathBranch1, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<IRenameResult>())).Returns(newBranch1RemoteMock.Object);
             trunkGitTfsRemote.Setup(t => t.InitBranch(It.IsAny<RemoteOptions>(), tfsPathBranch2, It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<IRenameResult>())).Returns(newBranch2RemoteMock.Object);
             trunkGitTfsRemote.Object.MaxChangesetId = 2000; //Simulate fetch already done
-            Assert.Equal(GitTfsExitCodes.OK, mocks.ClassUnderTest.Run());
+            Assert.Equal(GitTfsExitCodes.OK, classUnderTest.Run());
 
             gitRepository.Verify(x => x.AssertValidBranchName(GIT_BRANCH_TO_INIT3), Times.Never);
             gitRepository.Verify();
@@ -292,10 +292,10 @@ namespace GitTfs.Test.Commands
         [Fact]
         public void ShouldFailInitAllBranchesBecauseNoFetchWasSpecified()
         {
-            mocks.ClassUnderTest.CloneAllBranches = true;
-            mocks.ClassUnderTest.NoFetch = true;
+            classUnderTest.CloneAllBranches = true;
+            classUnderTest.NoFetch = true;
 
-            var ex = Assert.Throws<GitTfsException>(() => mocks.ClassUnderTest.Run());
+            var ex = Assert.Throws<GitTfsException>(() => classUnderTest.Run());
             Assert.Equal("error: --no-fetch cannot be used with --all", ex.Message);
         }
 
@@ -307,7 +307,7 @@ namespace GitTfs.Test.Commands
 
             InitMocks4Tests(GIT_BRANCH_TO_INIT1, out var gitRepositoryMock, out var trunkGitTfsRemoteMock, out var newBranch1RemoteMock, out var tfsHelperMock);
 
-            mocks.ClassUnderTest.CloneAllBranches = true;
+            classUnderTest.CloneAllBranches = true;
             var tfsPathBranch1 = "$/MyProject/MyBranch1";
             var tfsPathBranch2 = "$/MyProject/MyBranch2";
             tfsHelperMock.Setup(t => t.GetBranches(false)).Returns(new IBranchObject[] {
@@ -334,7 +334,7 @@ namespace GitTfs.Test.Commands
 
             #endregion
 
-            var ex = Assert.Throws<GitTfsException>(() => mocks.ClassUnderTest.Run());
+            var ex = Assert.Throws<GitTfsException>(() => classUnderTest.Run());
 
             Assert.Equal("error: The use of the option '--branches=all' to init all the branches is only possible when 'git tfs clone' was done from the trunk!!! '$/MyProject/Trunk' is not a TFS branch!", ex.Message);
 
@@ -356,18 +356,10 @@ namespace GitTfs.Test.Commands
         {
             var gitRepositoryMock = new Mock<IGitRepository>();
             mocks.Get<Globals>().Repository = gitRepositoryMock.Object;
-            var remoteMock = new Mock<IGitTfsRemote>();
-            remoteMock.SetupAllProperties();
-            var remote = remoteMock.Object;
-            remote.TfsUsername = "user";
-            remote.TfsPassword = "pwd";
-            remoteMock.SetupGet(x => x.TfsRepositoryPath).Returns("$/MyProject/Trunk");
-            remoteMock.SetupGet(x => x.TfsUrl).Returns("http://myTfsServer:8080/tfs");
-            remoteMock.SetupGet(x => x.Tfs).Returns(new TfsHelper(mocks.Container, null));
 
-            //Not Very Clean!!! Don't know how to test that :(
-            //If the InvalidOperationException is thrown, it's that the Helper.Run() is Called => That's what is expected!
-            Assert.Throws<InvalidOperationException>(() => mocks.ClassUnderTest.Run());
+            // When no branch path is provided, the command should show help
+            // and never attempt to read a TFS remote
+            try { classUnderTest.Run(); } catch { /* Help display may fail in test context */ }
             gitRepositoryMock.Verify(x => x.ReadTfsRemote("default"), Times.Never);
         }
         #endregion

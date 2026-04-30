@@ -1124,9 +1124,9 @@ namespace GitTfs.VsCommon
         /// </summary>
         protected abstract Assembly LoadFromVsFolder(object sender, ResolveEventArgs args);
 
-        protected string TryGetUserRegString(string path, string name) => TryGetRegString(Registry.CurrentUser, path, name);
+        protected string TryGetUserRegString(string path, string name) => TryGetRegString(Microsoft.Win32.Registry.CurrentUser, path, name);
 
-        protected string TryGetRegString(string path, string name) => TryGetRegString(Registry.LocalMachine, path, name);
+        protected string TryGetRegString(string path, string name) => TryGetRegString(Microsoft.Win32.Registry.LocalMachine, path, name);
 
         protected string TryGetRegString(RegistryKey registryKey, string path, string name)
         {
@@ -1159,7 +1159,7 @@ namespace GitTfs.VsCommon
         /// <param name="path">path in the registry tree</param>
         /// <param name="startOfName">start of the name of the key to find</param>
         /// <returns>the value corresponding to the key found</returns>
-        protected string TryGetUserRegStringStartingWithName(string path, string startOfName) => TryGetRegStringStartingWithName(Registry.CurrentUser, path, startOfName);
+        protected string TryGetUserRegStringStartingWithName(string path, string startOfName) => TryGetRegStringStartingWithName(Microsoft.Win32.Registry.CurrentUser, path, startOfName);
 
         /// <summary>
         /// Try to get the value of a key beginning with the name 'startOfName'
@@ -1172,7 +1172,7 @@ namespace GitTfs.VsCommon
         /// <param name="path">path in the registry tree</param>
         /// <param name="startOfName">start of the name of the key to find</param>
         /// <returns>the value corresponding to the key found</returns>
-        protected string TryGetRegStringStartingWithName(string path, string startOfName) => TryGetRegStringStartingWithName(Registry.LocalMachine, path, startOfName);
+        protected string TryGetRegStringStartingWithName(string path, string startOfName) => TryGetRegStringStartingWithName(Microsoft.Win32.Registry.LocalMachine, path, startOfName);
 
         protected string TryGetRegStringStartingWithName(RegistryKey registryKey, string path, string startOfName)
         {

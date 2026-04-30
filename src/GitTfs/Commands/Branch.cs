@@ -8,7 +8,6 @@ using System.Text;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("branch")]
     [Description("branch\n\n" +
         "       * Display inited remote TFS branches:\n       git tfs branch\n\n" +
         "       * Display remote TFS branches:\n       git tfs branch -r\n       git tfs branch -r -all\n\n" +

@@ -8,7 +8,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("verify")]
     [RequiresValidGitRepository]
     [Description("verify [options] [commitish]\n   ex: git-tfs verify\n       git-tfs verify 889ad74c162\n       git-tfs verify tfs/mybranch\n       git-tfs verify --all")]
     public class Verify : GitTfsCommand

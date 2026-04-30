@@ -6,7 +6,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("version")]
     [Description("version")]
     public class Version : GitTfsCommand
     {

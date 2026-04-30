@@ -6,7 +6,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("bootstrap")]
     [RequiresValidGitRepository]
     [Description("bootstrap [parent-commit]\n" +
         " info: if none of your tfs remote exists, always checkout and bootstrap your main remote first.\n")]

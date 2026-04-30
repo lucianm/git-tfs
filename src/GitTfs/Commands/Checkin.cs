@@ -4,7 +4,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("checkin")]
     [Description("checkin [options] [ref-to-checkin]")]
     [RequiresValidGitRepository]
     public class Checkin : CheckinBase

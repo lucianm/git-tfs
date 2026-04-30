@@ -6,7 +6,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("create")]
     [Description(@"create [options] tfs-url-or-instance-name project-name -t=trunk-name <git-repository-path>
 ex : git tfs create http://myTfsServer:8080/tfs/TfsRepository myProjectName
      git tfs create http://myTfsServer:8080/tfs/TfsRepository myProjectName -t=myTrunkName

@@ -1,18 +1,19 @@
 ﻿using GitTfs.Commands;
 using GitTfs.Core;
 using GitTfs.Util;
-using StructureMap.AutoMocking;
+using Moq.AutoMock;
 using Xunit;
 
 namespace GitTfs.Test.Util
 {
     public class ShelveSpecificCheckinOptionsFactoryTests
     {
-        private readonly MoqAutoMocker<CheckinOptionsFactory> mocks;
+        private readonly AutoMocker mocks;
 
         public ShelveSpecificCheckinOptionsFactoryTests()
         {
-            mocks = new MoqAutoMocker<CheckinOptionsFactory>();
+            mocks = new AutoMocker();
+            mocks.GetMock<Globals>().SetupAllProperties();
             mocks.Get<Globals>().Repository = mocks.Get<IGitRepository>();
         }
 

@@ -6,7 +6,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("cleanup-workspaces")]
     [Description("cleanup-workspaces [tfs-remote-id]...")]
     [RequiresValidGitRepository]
     public class CleanupWorkspaces : GitTfsCommand

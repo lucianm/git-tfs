@@ -8,7 +8,6 @@ using GitTfs.Util;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("labels")]
     [Description("labels [options] [tfsRemoteId]\n ex : git tfs labels\n      git tfs labels -i myRemoteBranche\n      git tfs labels --all")]
     [RequiresValidGitRepository]
     public class Labels : GitTfsCommand

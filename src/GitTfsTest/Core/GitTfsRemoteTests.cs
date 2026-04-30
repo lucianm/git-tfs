@@ -2,8 +2,7 @@
 using GitTfs.Core.TfsInterop;
 
 using Moq;
-
-using StructureMap.AutoMocking;
+using Moq.AutoMock;
 
 using Xunit;
 
@@ -55,12 +54,12 @@ namespace GitTfs.Test.Core
                 Repository = repository,
                 Aliases = legacyUrls ?? new string[0],
             };
-            var mocks = new MoqAutoMocker<GitTfsRemote>();
-            mocks.Inject(info);
+            var mocks = new AutoMocker();
+            mocks.Use(info);
             var mockTfsHelper = new Mock<ITfsHelper>();
             mockTfsHelper.SetupAllProperties();
-            mocks.Inject(mockTfsHelper.Object); // GitTfsRemote backs the TfsUrl with this.
-            return mocks.ClassUnderTest;
+            mocks.Use(mockTfsHelper.Object); // GitTfsRemote backs the TfsUrl with this.
+            return mocks.CreateInstance<GitTfsRemote>();
         }
 
         [Fact]
@@ -110,15 +109,15 @@ namespace GitTfs.Test.Core
                 Url = null,
                 Repository = null,
             };
-            var mocks = new MoqAutoMocker<GitTfsRemote>();
-            mocks.Inject(info);
-            mocks.Inject(new Mock<ITfsHelper>()); // GitTfsRemote backs the TfsUrl with this.
+            var mocks = new AutoMocker();
+            mocks.Use(info);
+            mocks.Use(new Mock<ITfsHelper>().Object); // GitTfsRemote backs the TfsUrl with this.
 
             var mockGitRepository = new Mock<IGitRepository>();
             mockGitRepository.Setup(t => t.GetSubtrees(It.IsAny<IGitTfsRemote>())).Returns(remotes);
 
-            mocks.Inject(new Globals() { Repository = mockGitRepository.Object });
-            return mocks.ClassUnderTest;
+            mocks.Use(new Globals() { Repository = mockGitRepository.Object });
+            return mocks.CreateInstance<GitTfsRemote>();
         }
     }
 }

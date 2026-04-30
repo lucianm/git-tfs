@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
+
+using GitTfs.Commands;
 using GitTfs.Core;
 using GitTfs.Core.Changes.Git;
 using GitTfs.Core.TfsInterop;
@@ -13,6 +15,42 @@ using NLog.Targets;
 
 namespace GitTfs
 {
+    public class CommandRegistry : Registry
+    {
+        public CommandRegistry()
+        {
+            For<GitTfsCommand>().Add<Bootstrap>().Named("bootstrap");
+            For<GitTfsCommand>().Add<Branch>().Named("branch");
+            For<GitTfsCommand>().Add<Checkin>().Named("checkin");
+            For<GitTfsCommand>().Add<CheckinTool>().Named("checkintool");
+            For<GitTfsCommand>().Add<CheckinTool>().Named("ct");
+            For<GitTfsCommand>().Add<Checkout>().Named("checkout");
+            For<GitTfsCommand>().Add<Cleanup>().Named("cleanup");
+            For<GitTfsCommand>().Add<CleanupWorkspaceLocal>().Named("cleanup-workspace-local");
+            For<GitTfsCommand>().Add<CleanupWorkspaces>().Named("cleanup-workspaces");
+            For<GitTfsCommand>().Add<Clone>().Named("clone");
+            For<GitTfsCommand>().Add<Commands.Version>().Named("version");
+            For<GitTfsCommand>().Add<Create>().Named("create");
+            For<GitTfsCommand>().Add<Diagnostics>().Named("diagnostics");
+            For<GitTfsCommand>().Add<ExportMap>().Named("exportmap");
+            For<GitTfsCommand>().Add<Fetch>().Named("fetch");
+            For<GitTfsCommand>().Add<Help>().Named("help");
+            For<GitTfsCommand>().Add<Info>().Named("info");
+            For<GitTfsCommand>().Add<Init>().Named("init");
+            For<GitTfsCommand>().Add<Labels>().Named("labels");
+            For<GitTfsCommand>().Add<ListRemoteBranches>().Named("list-remote-branches");
+            For<GitTfsCommand>().Add<Pull>().Named("pull");
+            For<GitTfsCommand>().Add<QuickClone>().Named("quick-clone");
+            For<GitTfsCommand>().Add<Rcheckin>().Named("rcheckin");
+            For<GitTfsCommand>().Add<ResetRemote>().Named("reset-remote");
+            For<GitTfsCommand>().Add<Shelve>().Named("shelve");
+            For<GitTfsCommand>().Add<ShelveDelete>().Named("shelve-delete");
+            For<GitTfsCommand>().Add<ShelveList>().Named("shelve-list");
+            For<GitTfsCommand>().Add<Subtree>().Named("subtree");
+            For<GitTfsCommand>().Add<Unshelve>().Named("unshelve");
+            For<GitTfsCommand>().Add<Verify>().Named("verify");
+        }
+    }
     public class Program
     {
         private static string _logFilePath;
@@ -79,7 +117,12 @@ namespace GitTfs
             }
         }
 
-        private static IContainer Initialize() => new Container(Initialize);
+        private static IContainer Initialize() =>
+            new Container(cfg =>
+            {
+                Initialize(cfg);
+                cfg.IncludeRegistry<CommandRegistry>();
+            });
 
         private static void Initialize(ConfigurationExpression initializer)
         {

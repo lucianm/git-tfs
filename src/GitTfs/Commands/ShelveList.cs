@@ -5,7 +5,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("shelve-list")]
     [Description("shelve-list -u <shelve-owner-name> [options]")]
     [RequiresValidGitRepository]
     public class ShelveList : GitTfsCommand

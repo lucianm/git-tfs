@@ -6,7 +6,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("subtree")]
     [Description("subtree [add|pull|split] [options] [remote | ( [tfs-url] [repository-path] )]")]
     [RequiresValidGitRepository]
     public class Subtree : GitTfsCommand

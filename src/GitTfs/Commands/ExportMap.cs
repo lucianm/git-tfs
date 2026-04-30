@@ -8,7 +8,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("exportmap")]
     [Description("exportmap -f <file>")]
     [RequiresValidGitRepository]
     public class ExportMap : GitTfsCommand

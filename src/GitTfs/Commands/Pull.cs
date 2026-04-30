@@ -5,7 +5,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("pull")]
     [Description("pull [options]")]
     [RequiresValidGitRepository]
     public class Pull : GitTfsCommand

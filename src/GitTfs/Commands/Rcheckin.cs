@@ -6,7 +6,6 @@ using StructureMap;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("rcheckin")]
     [RequiresValidGitRepository]
     public class Rcheckin : GitTfsCommand
     {

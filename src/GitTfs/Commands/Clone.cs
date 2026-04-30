@@ -8,7 +8,6 @@ using GitTfs.Core.TfsInterop;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("clone")]
     [Description("clone [options] tfs-url-or-instance-name repository-path <git-repository-path>\n  ex : git tfs clone http://myTfsServer:8080/tfs/TfsRepository $/ProjectName/ProjectBranch\n")]
     public class Clone : GitTfsCommand
     {

@@ -8,10 +8,12 @@ NUGET
     Moq (4.14.7)
       Castle.Core (>= 4.4)
       System.Threading.Tasks.Extensions (>= 4.5.1)
+    Moq.AutoMock (2.1)
+      Moq (>= 4.13.1)
     NLog (4.7.5)
-    structuremap (2.6.4.1)
-    structuremap.automocking (2.6.4.1)
-      structuremap (>= 2.6.4)
+    structuremap (4.7.1)
+      System.Reflection.Emit.Lightweight (>= 4.3)
+    System.Reflection.Emit.Lightweight (4.7)
     System.Runtime.CompilerServices.Unsafe (4.7.1)
     System.Threading.Tasks.Extensions (4.5.4)
       System.Runtime.CompilerServices.Unsafe (>= 4.5.3)
@@ -41,7 +43,7 @@ NUGET
     Octokit (0.52)
     OpenCover (4.7.922)
     ReportGenerator (4.7.1)
-    xunit.runner.console (2.7)
+    xunit.runner.console (2.9.3)
 
 GROUP VS2019
 RESTRICTION: == net48

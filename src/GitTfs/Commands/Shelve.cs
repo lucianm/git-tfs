@@ -7,7 +7,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("shelve")]
     [Description("shelve [options] shelveset-name [ref-to-shelve]")]
     [RequiresValidGitRepository]
     public class Shelve : GitTfsCommand

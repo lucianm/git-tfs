@@ -4,4 +4,4 @@ xunit.runner.visualstudio
 Moq
 nlog
 structuremap
-StructureMap.AutoMocking
+Moq.AutoMock

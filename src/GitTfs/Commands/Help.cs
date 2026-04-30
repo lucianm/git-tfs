@@ -9,7 +9,6 @@ using System.Diagnostics;
 
 namespace GitTfs.Commands
 {
-    [Pluggable("help")]
     [Description("help [command-name]")]
     public class Help : GitTfsCommand
     {
@@ -84,15 +83,24 @@ namespace GitTfs.Commands
             return GitTfsExitCodes.Help;
         }
 
-        private Dictionary<string, IEnumerable<string>> GetCommandMap() => (from instance in GetCommandInstances()
-                                                                            where instance.Name != null
-                                                                            orderby instance.Name
-                                                                            select instance.Name)
-                .ToDictionary(s => s, s => _commandFactory.GetAliasesForCommandName(s));
+        private Dictionary<string, IEnumerable<string>> GetCommandMap()
+        {
+            var commandInstances = GetCommandInstances().ToList();
 
-        private string GetCommandName(GitTfsCommand command) => (from instance in GetCommandInstances()
-                                                                 where instance.ConcreteType == command.GetType()
-                                                                 select instance.Name).Single();
+            var typeToNames = commandInstances
+                .GroupBy(i => i.ReturnedType) // <-- use ReturnedType here
+                .ToDictionary(
+                    g => g.First().Name,
+                    g => g.Select(x => x.Name).Where(n => n != g.First().Name)
+                );
+
+            return typeToNames;
+        }
+
+        private string GetCommandName(GitTfsCommand command) =>
+            (from instance in GetCommandInstances()
+             where instance.ReturnedType == command.GetType() // <-- use ReturnedType here
+             select instance.Name).Single();
 
         private IEnumerable<InstanceRef> GetCommandInstances() => _container.Model
                 .PluginTypes
@@ -109,6 +117,14 @@ namespace GitTfs.Commands
             return (descriptionAttribute != null)
                        ? descriptionAttribute.Description
                        : commandName + " [options]";
+        }
+
+        private IEnumerable<string> GetAllCommandNames()
+        {
+            return GetCommandInstances()
+                .Select(i => i.Name)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .OrderBy(n => n);
         }
     }
 
