@@ -72,7 +72,16 @@ namespace GitTfs.Test.Integration
             Console.WriteLine("Repository path:" + fullPath);
             var repoPath = LibGit2Sharp.Repository.Init(fullPath);
             using (var repo = new Repository(repoPath))
+            {
+                // Ensure the initial branch is named "master" regardless of the
+                // user's or system's init.defaultBranch setting, since the tests
+                // reference "master" by name.
+                if (repo.Head.FriendlyName != "master")
+                {
+                    repo.Refs.UpdateTarget("HEAD", "refs/heads/master");
+                }
                 buildIt(new RepoBuilder(repo));
+            }
         }
 
         public class RepoBuilder
