@@ -213,11 +213,9 @@ Task("Build").Description("Build git-tfs")
 			.SetMaxCpuCount(4)
 			.UseToolVersion(MSBuildToolVersion.VS2022)
 			;
-		settings.WithTarget("GitTfs_Vs2015")
-			.WithTarget("GitTfs_Vs2017")
-			.WithTarget("GitTfs_Vs2019")
-			.WithTarget("GitTfs_Vs2022")
-			.WithTarget(TestProjectName);
+		settings.WithTarget("GitTfs_Vs2019")
+				.WithTarget("GitTfs_Vs2022")
+				.WithTarget(TestProjectName);
 	});
 });
 
@@ -325,7 +323,7 @@ Task("Package").Description("Generate the release zip file")
 
 
 	CopyDirectory(@"..\doc", OutputDirectory + @"\doc");
-	CopyFiles(@".\packages\**\Microsoft.WITDataStore*.dll", OutputDirectory + @"\GitTfs.Vs2015\");
+
 	CopyFiles(new[] {@"..\README.md", @"..\LICENSE", @"..\NOTICE"}, OutputDirectory);
 	CopyFiles(new[] {@".\build\CorFlags.exe", @".\build\enable_checkin_policies_support.bat", @".\build\disable_checkin_policies_support.bat"}, OutputDirectory);
 	DeleteFiles(OutputDirectory + @"\**\*.pdb");

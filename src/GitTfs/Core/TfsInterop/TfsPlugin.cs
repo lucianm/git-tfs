@@ -50,8 +50,6 @@ namespace GitTfs.Core.TfsInterop
             {
                 "2022",
                 "2019",
-                "2017",
-                "2015",
                 "Fake"
             };
 
