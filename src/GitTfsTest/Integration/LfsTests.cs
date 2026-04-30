@@ -116,5 +116,40 @@ namespace GitTfs.Test.Integration
             h.AssertFileInWorkspace("MyProject", "Some_Picture_B.png", File.ReadAllBytes(Path.Combine(h.Workdir, "GitTfs.Test.Integration.LfsCandidates.Some_Picture_B.png")));
             h.AssertFileInIndex("MyProject", "Some_Picture_B.png", GetLfsPointer("MyProject", "Some_Picture_B.png"));
         }
+            /// <summary>
+            /// This test will clone from a TFS repository using the --gitattributes option,
+            /// validating that git-LFS will be activated from the very first changeset.
+            /// The .gitattributes file is provided via command line (not from TFS), so LFS
+            /// tracking is in effect even for files added in the earliest changesets.
+            /// </summary>
+            [FactExceptOnUnix]
+            public void CloneWithInitialGitattributesOption()
+            {
+                // Create a .gitattributes file in the workdir to pass via --gitattributes
+                string contentGitAttributes = "*.png filter=lfs diff=lfs merge=lfs -text\r\n";
+                string gitAttributesFilePath = Path.Combine(h.Workdir, "initial.gitattributes");
+                File.WriteAllText(gitAttributesFilePath, contentGitAttributes);
+
+                h.SetupFake(r =>
+                {
+                    r.Changeset(1, "Project created from template", DateTime.Parse("2012-01-01 12:12:10 -05:00"))
+                        .Change(TfsChangeType.Add, TfsItemType.Folder, "$/MyProject");
+                    r.Changeset(2, "Second TFS changeset: add two binary *.png files (LFS-tracked via initial --gitattributes)", DateTime.Parse("2012-01-02 12:12:12 -05:00"))
+                        .ChangeFromResource(TfsChangeType.Add, TfsItemType.File, "$/MyProject/Some_Picture_A.png", h.Workdir, "GitTfs.Test.Integration.LfsCandidates.Some_Picture_A.png")
+                        .ChangeFromResource(TfsChangeType.Add, TfsItemType.File, "$/MyProject/Some_Picture_B.png", h.Workdir, "GitTfs.Test.Integration.LfsCandidates.Some_Picture_B.png");
+                });
+
+                // Clone with --gitattributes to enable LFS from the root commit
+                h.Run("clone", $"--gitattributes={gitAttributesFilePath}", h.TfsUrl, "$/MyProject", "MyProject");
+
+                // The root commit (HEAD~2) should be the initial .gitattributes commit created by git-tfs
+                h.AssertFileInIndex("MyProject", ".gitattributes", contentGitAttributes);
+
+                // The PNG files should be LFS pointer files in the index (clean filter applied)
+                h.AssertFileInWorkspace("MyProject", "Some_Picture_A.png", File.ReadAllBytes(Path.Combine(h.Workdir, "GitTfs.Test.Integration.LfsCandidates.Some_Picture_A.png")));
+                h.AssertFileInIndex("MyProject", "Some_Picture_A.png", GetLfsPointer("MyProject", "Some_Picture_A.png"));
+                h.AssertFileInWorkspace("MyProject", "Some_Picture_B.png", File.ReadAllBytes(Path.Combine(h.Workdir, "GitTfs.Test.Integration.LfsCandidates.Some_Picture_B.png")));
+                h.AssertFileInIndex("MyProject", "Some_Picture_B.png", GetLfsPointer("MyProject", "Some_Picture_B.png"));
+            }
+        }
     }
-}
