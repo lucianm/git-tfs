@@ -635,10 +635,13 @@ Task("Chocolatey").Description("Generate the chocolatey package")
 Task("Default").Description("Run the unit tests")
 	.IsDependentOn("Run-Unit-Tests");
 
-Task("AppVeyorBuild").Description("Do the continuous integration build with AppVeyor")
+Task("CIBuild").Description("Do the continuous integration build")
 	.IsDependentOn("Run-Unit-Tests")
 	//.IsDependentOn("Run-Smoke-Tests") //TFS Projects on CodePlex are no more reachable
-	.IsDependentOn("Package")
+	.IsDependentOn("Package");
+
+Task("AppVeyorBuild").Description("Do the continuous integration build with AppVeyor")
+	.IsDependentOn("CIBuild")
 	.Finally(() =>
 	{
 		//Update the AppVeyor build number the latter possible to let the build accessible

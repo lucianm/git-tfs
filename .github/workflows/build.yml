@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+
+  push:
+    branches:
+      - master
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            src/packages
+            ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('src/paket.lock') }}
+
+      - name: Run Cake build
+        working-directory: src
+        run: |
+          ./build.ps1 `
+            -Target CIBuild `
+            -Configuration Release
+
+      - name: Upload ZIP artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-tfs-build
+          path: src/.build/
+          retention-days: 30
+          if-no-files-found: warn
+          include-hidden-files: true

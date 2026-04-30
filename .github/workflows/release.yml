@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-2022
+
+    permissions:
+      contents: write
+
+    defaults:
+      run:
+        shell: pwsh
+
+    env:
+      gitHubUserAccount: ${{ github.repository_owner }}
+      gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run Cake release
+        working-directory: src
+        run: |
+          ./build.ps1 `
+            -Target AppVeyorRelease `
+            -Configuration Release
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-tfs-release
+          path: src/.build/
+          include-hidden-files: true
