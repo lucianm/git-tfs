@@ -608,7 +608,9 @@ Task("Chocolatey").Description("Generate the chocolatey package")
 		BuildSystem.AzurePipelines.Commands.UploadArtifact("install", chocolateyPackagePath, chocolateyPackage);
 	}
 
-	if(!runInDryRun)
+	var enableChocolateyPush = EnvironmentVariable("ENABLE_CHOCO_PUSH") == "true";
+
+	if(!runInDryRun && enableChocolateyPush)
 	{
 		ChocolateyPush(chocolateyPackagePath, new ChocolateyPushSettings {
 			Source				= "https://chocolatey.org/",
@@ -644,9 +646,12 @@ Task("AppVeyorBuild").Description("Do the continuous integration build with AppV
 	.IsDependentOn("CIBuild")
 	.Finally(() =>
 	{
-		//Update the AppVeyor build number the latter possible to let the build accessible
-		//through the GitHub link until the build end
-		UpdateAppVeyorBuildNumber();
+		if(BuildSystem.IsRunningOnAppVeyor)
+		{
+			//Update the AppVeyor build number the latter possible to let the build accessible
+			//through the GitHub link until the build end
+			UpdateAppVeyorBuildNumber();
+		}
 	});
 
 Task("AppVeyorRelease").Description("Do the release build with AppVeyor")
@@ -658,9 +663,12 @@ Task("AppVeyorRelease").Description("Do the release build with AppVeyor")
 	.IsDependentOn("Chocolatey")
 	.Finally(() =>
 	{
-		//Update the AppVeyor build number the latter possible to let the build accessible
-		//through the GitHub link until the build end
-		UpdateAppVeyorBuildNumber();
+		if(BuildSystem.IsRunningOnAppVeyor)
+		{
+			//Update the AppVeyor build number the latter possible to let the build accessible
+			//through the GitHub link until the build end
+			UpdateAppVeyorBuildNumber();
+		}
 	});
 
 
