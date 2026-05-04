@@ -9,7 +9,7 @@
 //////////////////////////////////////////////////////////////////////
 readonly var Target = Argument("target", "Default");
 readonly var Configuration = Argument("configuration", "Debug");
-var runInDryRun = Argument<bool>("isDryRun", true);
+var runInDryRun = Argument<bool>("isDryRun", false);
 readonly var GitHubOwner = Argument("gitHubOwner", "git-tfs");
 readonly var GitHubRepository = Argument("gitHubRepository", "git-tfs");
 readonly var IdGitHubReleaseToDelete = Argument<int>("idGitHubReleaseToDelete", -1);
@@ -25,9 +25,14 @@ const string PathToSln = ApplicationPath + ".sln";
 const string TargetFramework = "net48"; //due to new dotnet csproj format
 readonly var OutDir = "bin/" + Configuration + "/" + TargetFramework + "/";
 const string buildAssetPath = @".\.build\";
-const string DownloadUrlTemplate ="https://github.com/git-tfs/git-tfs/releases/download/v{0}/";
+const string _downloadUrlBase = "https://github.com/lucianm/git-tfs";
+const string DownloadUrlTemplate = _downloadUrlBase + "/releases/download/v{0}/";
+// Fork-specific identifiers (empty for upstream)
+const string _forkOwner = "lucianm"; // "git-tfs" for upstream
+const string _forkPublisher = "LucianM"; // "GitTfs" for upstream  
+const string _forkPackageSuffix = "Lfs"; // "" for upstream
 string ReleaseNotesPath = @"..\doc\release-notes\NEXT.md";
-const string ChocolateyBuildDir = buildAssetPath + "choc";
+const string ChocolateyBuildDir = buildAssetPath + "chocolatey";
 readonly var OutputDirectory = ApplicationPath + "/" + OutDir;
 const string TestProjectName = "GitTfsTest";
 
@@ -42,6 +47,15 @@ string _releaseVersion;
 string _sha1;
 string _appVeyorBuildVersion;
 bool _buildAllVersion = (Target == "AppVeyorRelease");
+Cake.Common.Security.FileHash _sha256;
+string _shaFilePath;
+string _scoopManifestPath;
+string _scoopManifestZip;
+string _wingetVersionPath;
+string _wingetInstallerPath;
+string _wingetLocalePath;
+string _wingetManifestZip;
+string _chocolateyManifestZip;
 
 //////////////////////////////////////////////////////////////////////
 // TASKS
@@ -75,60 +89,24 @@ Task("DryRun").Description("Set the dry-run flag")
 	runInDryRun = true;
 });
 
-Task("TagVersion").Description("Handle release note and tag the new version")
+Task("TagVersion").Description("Validate release notes exist for this version")
 	.Does(() =>
 {
 	var version = GitVersion();
-	string nextVersion;
-	string tag;
-	if(!IsMinorRelease)
+	var expectedReleaseNotePath = @"..\doc\release-notes\v" + version.MajorMinorPatch + ".md";
+	
+	if(!FileExists(expectedReleaseNotePath))
 	{
-		var tagVersion = version.Major + "." + (version.Minor + 1);
-		tag =  "v" + tagVersion;
-		nextVersion = tagVersion + ".0";
+		throw new Exception(
+			$"Release notes file not found: {expectedReleaseNotePath}\n" +
+			"Please create the release notes file before tagging:\n" +
+			"  1. Copy NEXT.md to v" + version.MajorMinorPatch + ".md\n" +
+			"  2. Commit the new file\n" +
+			"  3. Create and push the tag: git tag v" + version.MajorMinorPatch + " && git push --follow-tags"
+		);
 	}
-	else
-	{
-		nextVersion = version.Major + "." + version.Minor + "." + version.CommitsSinceVersionSource;
-		tag =  "v" + nextVersion;
-	}
-	Information("Next version will be:" + nextVersion);
-
-	if(!runInDryRun)
-	{
-		Information("Creating release tag...");
-		var githubAccount = GetGithubUserAccount();
-		var githubToken = GetGithubAuthToken();
-		if(FileExists(ReleaseNotesPath))
-		{
-			var newReleaseNotePath = @"..\doc\release-notes\v" + nextVersion + ".md";
-			MoveFile(ReleaseNotesPath, newReleaseNotePath);
-
-			GitAdd("..", newReleaseNotePath);
-			GitRemove("..", false, ReleaseNotesPath);
-			var releaseNoteCommit = GitCommit("..", @"Git-tfs release bot", "no-reply@git-tfs.com", "Prepare release " + tag);
-			Information("Release note commit created:" + releaseNoteCommit.Sha);
-
-			ReleaseNotesPath = newReleaseNotePath;
-			GitPush("..", githubAccount, githubToken, "master");
-		}
-		if(!IsMinorRelease)
-		{
-			GitTag("..", tag);
-			GitPushRef("..", githubAccount, githubToken, "origin", "refs/tags/" + tag);
-		}
-	}
-	else
-	{
-		if(!IsMinorRelease)
-		{
-			Information("[DryRun] Should create the release tag: " + tag);
-		}
-		else
-		{
-			Information("[DryRun] Minor release => Should not create a release tag");
-		}
-	}
+	
+	Information($"Found release notes: {expectedReleaseNotePath}");
 });
 
 Task("Clean").Description("Clean the working directory")
@@ -153,8 +131,9 @@ Task("Version").Description("Get the version using GitVersion")
 	.Does(() =>
 {
 	var version = GitVersion();
-	_semanticVersionShort = version.Major + "." + version.Minor + "." + version.CommitsSinceVersionSource;
-	_semanticVersionLong = _semanticVersionShort + "+" + version.Sha + "." + version.BranchName;
+	// Use GitVersion's SemVer for better tagged commit handling
+	_semanticVersionShort = version.MajorMinorPatch;
+	_semanticVersionLong = version.InformationalVersion;
 	Information("Semantic version (short):" + _semanticVersionShort);
 	Information("Semantic version (long ):" + _semanticVersionLong);
 
@@ -162,16 +141,25 @@ Task("Version").Description("Get the version using GitVersion")
 	var normalizedBranchName = NormalizeBrancheName(version.BranchName);
 	_sha1 = version.Sha;
 	var shortSha1 = version.Sha.Substring(0,8);
-	var postFix = (version.BranchName == "master") ? string.Empty : "-" + shortSha1 + "." + normalizedBranchName;
+	// For tagged releases (CommitsSinceVersionSource == 0) or master branch, use clean version without postfix
+	var isTaggedRelease = version.CommitsSinceVersionSource == 0 || version.BranchName == "master" || version.BranchName.StartsWith("tags/");
+	var postFix = isTaggedRelease ? string.Empty : "-" + shortSha1 + "." + normalizedBranchName;
 	_zipFilename = string.Format(ZipFileTemplate, _semanticVersionShort + postFix);
 	_zipFilePath = System.IO.Path.Combine(buildAssetPath, _zipFilename);
+	_shaFilePath = _zipFilePath + ".sha256";
 	_downloadUrl = string.Format(DownloadUrlTemplate, _semanticVersionShort) + _zipFilename;
 
 	_releaseVersion = "v" + _semanticVersionShort;
+	
+	// Derive release notes path from version (tag-driven releases)
+	ReleaseNotesPath = @"..\doc\release-notes\" + _releaseVersion + ".md";
+	Information("Release notes path: " + ReleaseNotesPath);
 
+	// Guard against non-AppVeyor environments
+	var buildNumber = EnvironmentVariable("APPVEYOR_BUILD_NUMBER") ?? "0";
 	_appVeyorBuildVersion = _semanticVersionShort
 			+ ((version.BranchName == "master") ? string.Empty : "+" + shortSha1 + "." + normalizedBranchName)
-			+ "." + EnvironmentVariable("APPVEYOR_BUILD_NUMBER");
+			+ "." + buildNumber;
 });
 
 void UpdateAppVeyorBuildNumber()
@@ -326,21 +314,39 @@ Task("Package").Description("Generate the release zip file")
 
 	CopyFiles(new[] {@"..\README.md", @"..\LICENSE", @"..\NOTICE"}, OutputDirectory);
 	CopyFiles(new[] {@".\build\CorFlags.exe", @".\build\enable_checkin_policies_support.bat", @".\build\disable_checkin_policies_support.bat"}, OutputDirectory);
+	
+	// Build WinGet launcher for portable package distribution
+	Information("Building WinGet launcher...");
+	MSBuild(@".\build\WinGetLauncher.csproj", settings => {
+		settings.SetConfiguration(Configuration)
+			.SetVerbosity(Verbosity.Minimal)
+			.UseToolVersion(MSBuildToolVersion.VS2022)
+			.WithTarget("Build");
+	});
+	
 	DeleteFiles(OutputDirectory + @"\**\*.pdb");
 
 	//Create the zip
 	Zip(OutputDirectory, _zipFilePath);
+
+	// calculate sha256 hash, store in variable and file artifact, usable in Choco, Scoop, WinGet...
+	_sha256 = CalculateFileHash(_zipFilePath);
+	System.IO.File.WriteAllText(_shaFilePath, $"{_sha256.ToHex()}  {_zipFilename}");
+	Information($"Hash ({_sha256.Algorithm:G}):" + _sha256.ToHex());
+
 	if(!BuildSystem.IsLocalBuild)
 	{
 		if(BuildSystem.IsRunningOnAppVeyor)
 		{
 			Information("Upload artifacts to AppVeyor...");
 			BuildSystem.AppVeyor.UploadArtifact(_zipFilePath);
+			BuildSystem.AppVeyor.UploadArtifact(_shaFilePath);
 		}
 		if(BuildSystem.IsRunningOnAzurePipelinesHosted)
 		{
 			Information("Upload artifacts to VSTS...");
 			BuildSystem.AzurePipelines.Commands.UploadArtifact("install", _zipFilePath, _zipFilename);
+			BuildSystem.AzurePipelines.Commands.UploadArtifact("install", _shaFilePath, System.IO.Path.GetFileName(_shaFilePath));
 		}
 	}
 });
@@ -435,14 +441,195 @@ string GetGithubAuthToken()
 		return token;
 	}
 
-	return ReadToken("GitHub", @"^ghp_[\d\w]{36}$");
+	return ReadToken("GitHub", @"^(ghp_|github_pat_).+");
 }
 
 string ReadReleaseNotes()
 {
 	if(!FileExists(ReleaseNotesPath))
+	{
+		Warning($"Release notes file not found: {ReleaseNotesPath}");
 		return string.Empty;
-	return System.IO.File.ReadAllText(ReleaseNotesPath);
+	}
+	var notes = System.IO.File.ReadAllText(ReleaseNotesPath);
+	Information($"Loaded release notes from: {ReleaseNotesPath}");
+	return notes;
+}
+
+void GenerateScoopManifest()
+{
+	Information("Generating Scoop manifest...");
+	
+	var packageSuffix = string.IsNullOrEmpty(_forkPackageSuffix) ? "" : "-" + _forkPackageSuffix.ToLower();
+	var description = string.IsNullOrEmpty(_forkPackageSuffix)
+		? "A Git/TFS bridge, similar to git-svn."
+		: "A Git/TFS bridge with full Git LFS support, similar to git-svn.";
+	
+	// Build manifest matching upstream Scoop format
+	var scoopManifest = new
+	{
+		version = _semanticVersionShort,
+		description = description,
+		homepage = _downloadUrlBase,
+		license = "Apache-2.0",
+		depends = "git",
+		url = _downloadUrl,
+		hash = _sha256.ToHex().ToLower(),
+		bin = "git-tfs.exe",
+		checkver = new
+		{
+			github = _downloadUrlBase
+		},
+		autoupdate = new
+		{
+			url = $"{_downloadUrlBase}/releases/download/v$version/GitTfs-$version.zip"
+		}
+	};
+	
+	var scoopDir = System.IO.Path.Combine(buildAssetPath, "scoop");
+	EnsureDirectoryExists(scoopDir);
+	CleanDirectory(scoopDir);
+	
+	_scoopManifestPath = System.IO.Path.Combine(scoopDir, $"git-tfs{packageSuffix}.json");
+	var json = Newtonsoft.Json.JsonConvert.SerializeObject(scoopManifest, Newtonsoft.Json.Formatting.Indented);
+	System.IO.File.WriteAllText(_scoopManifestPath, json + Environment.NewLine);
+	Information($"Scoop manifest created: {_scoopManifestPath}");
+	
+	// Zip the Scoop manifest
+	_scoopManifestZip = System.IO.Path.Combine(buildAssetPath, "manifest.scoop.zip");
+	Zip(scoopDir, _scoopManifestZip);
+	Information($"Scoop manifest zipped: {_scoopManifestZip}");
+	
+	if(BuildSystem.IsRunningOnAppVeyor)
+	{
+		Information("Uploading Scoop manifest as AppVeyor artifact...");
+		BuildSystem.AppVeyor.UploadArtifact(_scoopManifestZip);
+	}
+	if(BuildSystem.IsRunningOnAzurePipelinesHosted)
+	{
+		Information("Uploading Scoop manifest as Azure Pipelines artifact...");
+		BuildSystem.AzurePipelines.Commands.UploadArtifact("install", _scoopManifestZip, "manifest.scoop.zip");
+	}
+}
+
+void GenerateWinGetManifest()
+{
+	Information("Generating WinGet manifest...");
+	
+	// WinGet uses YAML manifests with three files: version, installer, and locale
+	// Format: manifests/<first-letter>/<Publisher>/<PackageName>/<Version>/
+	var wingetBaseDir = System.IO.Path.Combine(buildAssetPath, "winget");
+	var publisher = string.IsNullOrEmpty(_forkPublisher) ? "GitTfs" : _forkPublisher;
+	var packageId = $"{publisher}.GitTfs{_forkPackageSuffix}";
+	var packageName = string.IsNullOrEmpty(_forkPackageSuffix) ? "git-tfs" : $"git-tfs-{_forkPackageSuffix.ToLower()}";
+	
+	// Create versioned directory structure
+	var wingetDir = System.IO.Path.Combine(wingetBaseDir, _semanticVersionShort);
+	EnsureDirectoryExists(wingetDir);
+	CleanDirectory(wingetDir);
+	
+	// Version manifest
+	var versionManifest = $@"# Created using Cake Build
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.12.0.schema.json
+
+PackageIdentifier: {packageId}
+PackageVersion: {_semanticVersionShort}
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.12.0
+";
+	_wingetVersionPath = System.IO.Path.Combine(wingetDir, $"{packageId}.yaml");
+	System.IO.File.WriteAllText(_wingetVersionPath, versionManifest);
+	
+	// Installer manifest
+	var installerManifest = $@"# Created using Cake Build
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
+
+PackageIdentifier: {packageId}
+PackageVersion: {_semanticVersionShort}
+InstallerType: zip
+Installers:
+- Architecture: x64
+  NestedInstallerType: portable
+  NestedInstallerFiles:
+  - RelativeFilePath: git-tfs-launcher.exe
+    PortableCommandAlias: git-tfs
+  InstallerUrl: {_downloadUrl}
+  InstallerSha256: {_sha256.ToHex()}
+  Dependencies:
+    PackageDependencies:
+    - PackageIdentifier: Git.Git
+ManifestType: installer
+ManifestVersion: 1.12.0
+";
+	_wingetInstallerPath = System.IO.Path.Combine(wingetDir, $"{packageId}.installer.yaml");
+	System.IO.File.WriteAllText(_wingetInstallerPath, installerManifest);
+	
+	// Locale manifest
+	var releaseNotes = ReadReleaseNotes();
+	if(string.IsNullOrEmpty(releaseNotes))
+	{
+		releaseNotes = $"See {_downloadUrlBase}/releases/tag/v{_semanticVersionShort}";
+	}
+	// WinGet schema 1.12.0 allows up to 10000 characters for ReleaseNotes
+	if(releaseNotes.Length > 10000)
+	{
+		releaseNotes = releaseNotes.Substring(0, 9997) + "...";
+	}
+	// Escape special characters for YAML string formatting
+	releaseNotes = releaseNotes.Replace("\\", "\\\\").Replace("\"", "\\\"");
+	
+	var publisherName = string.IsNullOrEmpty(_forkPublisher) ? "git-tfs contributors" : "Lucian Muresan";
+	var description = string.IsNullOrEmpty(_forkPackageSuffix) 
+		? "git-tfs is a two-way bridge between TFS/Azure DevOps and Git, allowing you to work with a Git repository while interacting with TFS."
+		: "git-tfs is a two-way bridge between TFS/Azure DevOps and Git, allowing you to work with a Git repository while interacting with TFS. This fork includes full Git LFS awareness via filter-process protocol, supporting LFS right from cloning from TFVC.";
+	
+	var localeManifest = $@"# Created using Cake Build
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.12.0.schema.json
+
+PackageIdentifier: {packageId}
+PackageVersion: {_semanticVersionShort}
+PackageLocale: en-US
+Publisher: {publisherName}
+PublisherUrl: {_downloadUrlBase}
+PackageName: {packageName}
+PackageUrl: {_downloadUrlBase}
+License: Apache-2.0
+LicenseUrl: {_downloadUrlBase}/blob/master/LICENSE
+ShortDescription: A Git/TFS bridge with full Git LFS support
+Description: {description}
+Tags:
+- git
+- tfs
+- version-control
+- azure-devops
+- lfs
+- git-lfs
+ReleaseNotes: ""{releaseNotes}""
+ReleaseNotesUrl: {_downloadUrlBase}/releases/tag/v{_semanticVersionShort}
+ManifestType: defaultLocale
+ManifestVersion: 1.12.0
+";
+	_wingetLocalePath = System.IO.Path.Combine(wingetDir, $"{packageId}.locale.en-US.yaml");
+	System.IO.File.WriteAllText(_wingetLocalePath, localeManifest);
+	
+	Information($"WinGet manifests created in: {wingetDir}");
+	
+	// Zip the WinGet manifests
+	_wingetManifestZip = System.IO.Path.Combine(buildAssetPath, "manifest.winget.zip");
+	Zip(wingetDir, _wingetManifestZip);
+	Information($"WinGet manifests zipped: {_wingetManifestZip}");
+	
+	if(BuildSystem.IsRunningOnAppVeyor)
+	{
+		Information("Uploading WinGet manifest as AppVeyor artifact...");
+		BuildSystem.AppVeyor.UploadArtifact(_wingetManifestZip);
+	}
+	if(BuildSystem.IsRunningOnAzurePipelinesHosted)
+	{
+		Information("Uploading WinGet manifest as Azure Pipelines artifact...");
+		BuildSystem.AzurePipelines.Commands.UploadArtifact("install", _wingetManifestZip, "manifest.winget.zip");
+	}
 }
 
 Octokit.GitHubClient GetGithubClient()
@@ -487,10 +674,8 @@ environmentVariables: {
 	httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", appVeyorToken);
 	httpClient.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
-	var taskTriggerRelease = httpClient.PostAsync("https://ci.appveyor.com/api/builds",
-		new System.Net.Http.StringContent(content, System.Text.Encoding.UTF8, "application/json"));
-	taskTriggerRelease.Wait();
-	var httpResponseMessage = taskTriggerRelease.Result;
+	var httpResponseMessage = httpClient.PostAsync("https://ci.appveyor.com/api/builds",
+		new System.Net.Http.StringContent(content, System.Text.Encoding.UTF8, "application/json")).GetAwaiter().GetResult();
 	if(httpResponseMessage.IsSuccessStatusCode)
 	{
 		Information("Release build successfully triggered.");
@@ -503,6 +688,7 @@ environmentVariables: {
 
 Task("CreateGithubRelease").Description("Create a GitHub release")
 	.IsDependentOn("Package")
+	.IsDependentOn("GenerateDistributionChannelArtifacts")
 	.WithCriteria(!runInDryRun)
 	.Does(() =>
 {
@@ -512,22 +698,66 @@ Task("CreateGithubRelease").Description("Create a GitHub release")
 
 	var releaseNotes = ReadReleaseNotes();
 
-	releaseNotes += Environment.NewLine +  "![Git-Tfs " + _releaseVersion + " download count](https://img.shields.io/github/downloads/git-tfs/git-tfs/" + _releaseVersion + "/total.svg)";
+	releaseNotes += Environment.NewLine +  "![Git-Tfs " + _releaseVersion + " download count](https://img.shields.io/github/downloads/" + _forkOwner + "/git-tfs/" + _releaseVersion + "/total.svg)";
 
-	var newRelease = new Octokit.NewRelease(_releaseVersion);
-	newRelease.Name = _releaseVersion;
-	newRelease.Body = releaseNotes;
-	newRelease.Draft = false;
-	newRelease.Prerelease = false;
-	newRelease.TargetCommitish = _sha1;
+	// Check if release already exists (for GitHub Actions re-runs)
+	// Use GetAll and filter by TagName for maximum compatibility
+	Octokit.Release gitHubRelease = null;
+	try
+	{
+		var allReleases = client.Repository.Release.GetAll(GitHubOwner, GitHubRepository).GetAwaiter().GetResult();
+		gitHubRelease = allReleases.FirstOrDefault(r => r.TagName == _releaseVersion);
+		
+		if(gitHubRelease != null)
+		{
+			Information($"Github Release '{_releaseVersion}' already exists (Id: {gitHubRelease.Id}). Updating...");
+			
+			try
+			{
+				// Update existing release
+				var releaseUpdate = gitHubRelease.ToUpdate();
+				releaseUpdate.Body = releaseNotes;
+				releaseUpdate.Name = _releaseVersion;
+				releaseUpdate.TargetCommitish = _sha1;
+				
+				gitHubRelease = client.Repository.Release.Edit(GitHubOwner, GitHubRepository, gitHubRelease.Id, releaseUpdate).GetAwaiter().GetResult();
+			}
+			catch (Octokit.ApiException ex)
+			{
+				throw new Exception($"Failed to update GitHub release '{_releaseVersion}' (Id: {gitHubRelease.Id}): {ex.StatusCode} {ex.Message}", ex);
+			}
+		}
+		else
+		{
+			// Release doesn't exist, create it
+			Information($"Creating new Github Release '{_releaseVersion}'...");
+			
+			try
+			{
+				var newRelease = new Octokit.NewRelease(_releaseVersion);
+				newRelease.Name = _releaseVersion;
+				newRelease.Body = releaseNotes;
+				newRelease.Draft = false;
+				newRelease.Prerelease = false;
+				newRelease.TargetCommitish = _sha1;
 
-	var taskCreateRelease = client.Repository.Release.Create(GitHubOwner, GitHubRepository, newRelease);
-	taskCreateRelease.Wait();
-	var gitHubRelease = taskCreateRelease.Result;
-	Information("Github Release created. Id:" + gitHubRelease.Id);
+				gitHubRelease = client.Repository.Release.Create(GitHubOwner, GitHubRepository, newRelease).GetAwaiter().GetResult();
+				Information("Github Release created. Id:" + gitHubRelease.Id);
+			}
+			catch (Octokit.ApiException ex)
+			{
+				throw new Exception($"Failed to create GitHub release '{_releaseVersion}': {ex.StatusCode} {ex.Message}", ex);
+			}
+		}
+	}
+	catch (System.Exception ex) when (!(ex is Octokit.ApiException))
+	{
+		throw new Exception("Failed to create or update GitHub release: " + ex.Message, ex);
+	}
+	
 	Information("If needed, delete the Github Release with the command:");
 	Information(@".\tools\Cake\Cake.exe build.cake -target=DeleteRelease -idGitHubReleaseToDelete="+ gitHubRelease.Id);
-	UploadReleaseAsset(client, gitHubRelease);
+	UploadReleaseAssets(client, gitHubRelease);
 });
 
 Task("DeleteRelease").Description("Delete a (broken) GitHub release")
@@ -536,30 +766,72 @@ Task("DeleteRelease").Description("Delete a (broken) GitHub release")
 {
 	Information("Deleting release '" + IdGitHubReleaseToDelete +"'...");
 	var client = GetGithubClient();
-	var taskDeleteRelease = client.Repository.Release.Delete(GitHubOwner, GitHubRepository, IdGitHubReleaseToDelete);
-	taskDeleteRelease.Wait();
+	client.Repository.Release.Delete(GitHubOwner, GitHubRepository, IdGitHubReleaseToDelete).GetAwaiter().GetResult();
 });
 
-void UploadReleaseAsset(Octokit.GitHubClient client, Octokit.Release release)
+void UploadReleaseAssets(Octokit.GitHubClient client, Octokit.Release release)
 {
-	Information("Uploading asset...");
-	var archiveContents = System.IO.File.OpenRead(_zipFilePath);
-	var assetUpload = new Octokit.ReleaseAssetUpload()
-	{
-		FileName = _zipFilename,
-		ContentType = "application/zip",
-		RawData = archiveContents
-	};
+	Information("Uploading release assets...");
+	
+	// Get fresh asset list for idempotent uploads
+	var existingAssets = client.Repository.Release.GetAllAssets(GitHubOwner, GitHubRepository, release.Id).GetAwaiter().GetResult();
+	
+	// Helper function to upload a single asset
+	Action<string, string> uploadAsset = (filePath, contentType) => {
+		var fileName = System.IO.Path.GetFileName(filePath);
+		
+		// Check if asset already exists and delete it
+		var existingAsset = existingAssets.FirstOrDefault(a => a.Name == fileName);
+		if(existingAsset != null)
+		{
+			Information($"Asset '{fileName}' already exists. Deleting old version...");
+			try
+			{
+				client.Repository.Release.DeleteAsset(GitHubOwner, GitHubRepository, existingAsset.Id).GetAwaiter().GetResult();
+			}
+			catch (Octokit.ApiException ex)
+			{
+				Warning($"Failed to delete existing asset '{fileName}': {ex.StatusCode} {ex.Message}");
+				// Continue anyway, upload may still succeed
+			}
+		}
+		
+		Information($"Uploading asset: {fileName} ({contentType})");
+		var fileContents = System.IO.File.OpenRead(filePath);
+		
+		try
+		{
+			var assetUpload = new Octokit.ReleaseAssetUpload()
+			{
+				FileName = fileName,
+				ContentType = contentType,
+				RawData = fileContents
+			};
 
-	var uploadTask = client.Repository.Release.UploadAsset(release, assetUpload);
-	uploadTask.Wait();
-	if(uploadTask.Exception != null)
-	{
-		throw new Exception("Fail to upload asset!!" + uploadTask.Exception.Message);
-	}
+			client.Repository.Release.UploadAsset(release, assetUpload).GetAwaiter().GetResult();
+			Information($"Successfully uploaded: {fileName}");
+		}
+		catch (Octokit.ApiException ex)
+		{
+			throw new Exception($"Failed uploading asset '{fileName}' ({contentType}): {ex.StatusCode} {ex.Message}", ex);
+		}
+		finally
+		{
+			fileContents.Dispose();
+		}
+	};
+	
+	// Upload all assets
+	uploadAsset(_zipFilePath, "application/zip");
+	uploadAsset(_shaFilePath, "text/plain");
+	uploadAsset(_chocolateyManifestZip, "application/zip");
+	uploadAsset(_scoopManifestZip, "application/zip");
+	uploadAsset(_wingetManifestZip, "application/zip");
+	
+	Information("All release assets uploaded successfully.");
 }
 
-Task("Chocolatey").Description("Generate the chocolatey package")
+Task("GenerateDistributionChannelArtifacts").Description("Generate packaging artifacts for different distribution channels")
 	.IsDependentOn("TagVersion")
 	.IsDependentOn("Package")
 	.Does(() =>
@@ -570,21 +842,18 @@ Task("Chocolatey").Description("Generate the chocolatey package")
 	CopyFiles(@".\build\ChocolateyTemplates\*.*", ChocolateyBuildDir);
 	var nuspecPathInBuildDir = System.IO.Path.Combine(ChocolateyBuildDir, "gittfs.nuspec");
 
-	var sha256 = CalculateFileHash(_zipFilePath);
-	Information($"Hash ({sha256.Algorithm:G}):" + sha256.ToHex());
-
 	//Template 'chocolateyInstall.ps1'
 	var installScriptPathInBuildDir = System.IO.Path.Combine(ChocolateyBuildDir, "chocolateyInstall.ps1");
 	string text = TransformTextFile(installScriptPathInBuildDir, "${", "}")
 		.WithToken("DownloadUrl", _downloadUrl)
-		.WithToken("Checksum", sha256.ToHex())
+		.WithToken("Checksum", _sha256.ToHex())
 		.ToString();
 	System.IO.File.WriteAllText(installScriptPathInBuildDir, text);
 
 	var releaseNotes = ReadReleaseNotes();
 	if(string.IsNullOrEmpty(releaseNotes))
 	{
-		releaseNotes = "See https://github.com/git-tfs/git-tfs/releases/tag/v" + _semanticVersionShort;
+		releaseNotes = "See " + _downloadUrlBase + "/releases/tag/v" + _semanticVersionShort;
 	}
 	//http://cakebuild.net/dsl/chocolatey
 	Information("Creating Chocolatey package:" + nuspecPathInBuildDir);
@@ -629,6 +898,27 @@ Task("Chocolatey").Description("Generate the chocolatey package")
 	{
 		Information($"[DryRun] Would have uploaded chocolatey package '{chocolateyPackagePath}'...");
 	}
+
+	// Zip Chocolatey artifacts for release
+	_chocolateyManifestZip = System.IO.Path.Combine(buildAssetPath, "manifest.chocolatey.zip");
+	Zip(ChocolateyBuildDir, _chocolateyManifestZip);
+	Information($"Chocolatey manifest zipped: {_chocolateyManifestZip}");
+	
+	// Upload Chocolatey manifest zip as artifact
+	if(BuildSystem.IsRunningOnAppVeyor)
+	{
+		BuildSystem.AppVeyor.UploadArtifact(_chocolateyManifestZip);
+	}
+	if(BuildSystem.IsRunningOnAzurePipelinesHosted)
+	{
+		BuildSystem.AzurePipelines.Commands.UploadArtifact("install", _chocolateyManifestZip, "manifest.chocolatey.zip");
+	}
+
+	// Generate Scoop manifest
+	GenerateScoopManifest();
+
+	// Generate WinGet manifest
+	GenerateWinGetManifest();
 });
 
 //////////////////////////////////////////////////////////////////////
@@ -655,12 +945,10 @@ Task("AppVeyorBuild").Description("Do the continuous integration build with AppV
 	});
 
 Task("AppVeyorRelease").Description("Do the release build with AppVeyor")
-	.IsDependentOn("TagVersion")
 	.IsDependentOn("Run-Unit-Tests")
 	//.IsDependentOn("Run-Smoke-Tests") //TFS Projects on CodePlex are no more reachable
 	.IsDependentOn("Package")
 	.IsDependentOn("CreateGithubRelease")
-	.IsDependentOn("Chocolatey")
 	.Finally(() =>
 	{
 		if(BuildSystem.IsRunningOnAppVeyor)
@@ -673,7 +961,7 @@ Task("AppVeyorRelease").Description("Do the release build with AppVeyor")
 
 
 Task("Release").Description("Build the release and put it on github.com")
-	.IsDependentOn("Chocolatey");
+	.IsDependentOn("CreateGithubRelease");
 
 Task("DryRunRelease").Description("Do a 'dry-run' release to verify easily most of the release tasks")
 	.IsDependentOn("DryRun")

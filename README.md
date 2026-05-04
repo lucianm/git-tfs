@@ -1,31 +1,42 @@
 ## Introduction
 
-[git-tfs](http://git-tfs.com/) is a two-way bridge between TFS (Team Foundation Server) and git, similar to git-svn.
+**git-tfs-lfs** is a community-maintained fork of [git-tfs](http://git-tfs.com/) with **full Git LFS support**.
+
+git-tfs is a two-way bridge between TFS (Team Foundation Server) and git, similar to git-svn.
 It fetches TFS commits into a git repository, and lets you push your updates back to TFS.
 
-[![git-tfs version](https://img.shields.io/github/release/git-tfs/git-tfs.svg?label=Latest%20Version:)](https://github.com/git-tfs/git-tfs/releases). See the [change history](https://github.com/git-tfs/git-tfs/releases) for details and download.
+### What's New in This Fork
+
+- **Full Git LFS awareness** via filter-process protocol - LFS files are properly handled from initial TFVC clone
+- Updated dependencies (libgit2sharp 0.31, StructureMap 4.7.1, xunit 2.7)
+- Support for Visual Studio 2019 and 2022 only (VS2015/2017 support dropped)
+
+### Upstream Status
+
+This is a fork of the [original git-tfs project](https://github.com/git-tfs/git-tfs) which has been largely dormant since 2024. The upstream maintainers are no longer active TFS users and the project is not actively maintained. This fork aims to maintain the project a little longer, with focus on LFS support and modern dependency updates.
 
 If you're having problems, check out the [troubleshooting](doc/TROUBLESHOOTING.md) page.
 And read [how to report an issue](doc/reporting-issues.md), before doing so ;)
 
-## We need your help
-
-This project is no more **actively** maintained because we are no more users of TFS.
-Thus being very useful, git-tfs is not exempt of not supported use cases.
-If you encounter something missing or a problem, please contribute, we will be pleased to help you.
-
-And remember:
-
->The fastest way to get an issue fixed is to submit a PR that fixes it.
-
->The slowest way to get it fixed is to hope someone else will fix it.
-
-## Get git-tfs
+## Get git-tfs-lfs
 
 To get a stable version:
 
-* Download a binary. Find it on the [release page](https://github.com/git-tfs/git-tfs/releases),
-* Using Chocolatey. If [Chocolatey](http://chocolatey.org/) is already installed on your computer, run `choco install gittfs` to install the [Chocolatey package](http://chocolatey.org/packages/gittfs)
+* Download a binary from the [releases page](https://github.com/lucianm/git-tfs/releases)
+* Using Scoop: `scoop install gittfs-lfs` (once the bucket PR is merged)
+* Using WinGet: `winget install LucianM.GitTfsLfs` (once the package is approved)
+
+### Original Upstream Version
+
+The original git-tfs is available at:
+* [Upstream releases](https://github.com/git-tfs/git-tfs/releases)
+* Using Chocolatey: `choco install gittfs` - installs the [upstream Chocolatey package](http://chocolatey.org/packages/gittfs)
+
+## Contributing
+
+Contributions are welcome! Please submit PRs for bug fixes, features, or improvements.
+
+>The fastest way to get an issue fixed is to submit a PR that fixes it.
 
 To get a development version
 

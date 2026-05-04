@@ -13,6 +13,7 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
 
     defaults:
       run:
@@ -20,7 +21,7 @@ jobs:
 
     env:
       gitHubUserAccount: ${{ github.repository_owner }}
-      gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+      gitHubToken: ${{ github.token }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       ENABLE_CHOCO_PUSH: false
 
@@ -34,7 +35,10 @@ jobs:
         run: |
           ./build.ps1 `
             -Target AppVeyorRelease `
-            -Configuration Release
+            -Configuration Release `
+            --isDryRun=false `
+            --gitHubOwner=${{ github.repository_owner }} `
+            --gitHubRepository=git-tfs
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4

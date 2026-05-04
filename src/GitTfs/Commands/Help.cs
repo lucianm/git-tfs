@@ -61,7 +61,7 @@ namespace GitTfs.Commands
                 Trace.TraceInformation(command);
             }
             Trace.TraceInformation(" (use 'git-tfs help [command]' or 'git-tfs [command] --help' for more information)");
-            Trace.TraceInformation("\nFind more help in our online help : https://github.com/git-tfs/git-tfs");
+            Trace.TraceInformation("\nFind more help in our online help : https://github.com/lucianm/git-tfs");
             return GitTfsExitCodes.Help;
         }
 
@@ -78,7 +78,7 @@ namespace GitTfs.Commands
             command.GetAllOptions(_container).WriteOptionDescriptions(writer);
             Trace.TraceInformation(writer.ToString());
 
-            Trace.TraceInformation("\nFind more help in our online help : https://github.com/git-tfs/git-tfs/blob/master/doc/commands/" + GetCommandName(command) + ".md");
+            Trace.TraceInformation("\nFind more help in our online help : https://github.com/lucianm/git-tfs/blob/master/doc/commands/" + GetCommandName(command) + ".md");
 
             return GitTfsExitCodes.Help;
         }
