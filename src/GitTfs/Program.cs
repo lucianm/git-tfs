@@ -215,13 +215,16 @@ namespace GitTfs
 
         private static void DoCustomConfiguration(ConfigurationExpression initializer)
         {
-            foreach (var type in typeof(Program).Assembly.GetTypes())
-            {
-                foreach (ConfiguresStructureMap attribute in type.GetCustomAttributes(typeof(ConfiguresStructureMap), false))
-                {
-                    attribute.Initialize(initializer, type);
-                }
-            }
+            initializer.For<CleanupOptions>().Singleton().Use<CleanupOptions>();
+            initializer.For<InitOptions>().Singleton().Use<InitOptions>();
+            initializer.For<GitTfsCommandFactory>().Singleton().Use<GitTfsCommandFactory>();
+
+            initializer.For<CheckinOptions>().Singleton().Use<CheckinOptions>();
+            initializer.For<RemoteOptions>().Singleton().Use<RemoteOptions>();
+            initializer.For<Janitor>().Singleton().Use<Janitor>();
+            initializer.For<Globals>().Singleton().Use<Globals>();
+            initializer.For<AuthorsFile>().Singleton().Use<AuthorsFile>();
+            initializer.For<ConfigPropertyLoader>().Singleton().Use<ConfigPropertyLoader>();
         }
     }
 }

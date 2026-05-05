@@ -1,10 +1,7 @@
-﻿using GitTfs.Util;
-
 using System.Diagnostics;
 
 namespace GitTfs.Core
 {
-    [StructureMapSingleton]
     public class Janitor : IDisposable
     {
         private readonly Queue<Action> _actions = new Queue<Action>();

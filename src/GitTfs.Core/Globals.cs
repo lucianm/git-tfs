@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using NDesk.Options;
 using GitTfs.Core;
-using GitTfs.Util;
 
 namespace GitTfs
 {
-    [StructureMapSingleton]
     public class Globals
     {
         public OptionSet OptionSet => new OptionSet

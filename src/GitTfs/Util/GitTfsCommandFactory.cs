@@ -1,8 +1,7 @@
-﻿using StructureMap;
+using StructureMap;
 
 namespace GitTfs.Util
 {
-    [StructureMapSingleton]
     public class GitTfsCommandFactory
     {
         private readonly IContainer _container;
