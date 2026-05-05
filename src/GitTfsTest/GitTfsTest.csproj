@@ -12,6 +12,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GitTfs\GitTfs.csproj" />
     <ProjectReference Include="..\NDesk.Options\NDesk.Options.csproj" />
     <ProjectReference Include="..\GitTfs.VsFake\GitTfs.VsFake.csproj" />
     <ProjectReference Include="..\GitTfs\GitTfs.csproj" />
@@ -19,7 +20,6 @@
   <ItemGroup>
     <Reference Include="xunit.runner.visualstudio.testadapter, Version=2.1.0.1129, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\xunit.runner.visualstudio\build\_common\xunit.runner.visualstudio.testadapter.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -50,7 +50,13 @@
     <EmbeddedResource Include="Integration\GlobalConfigs\standard.gitconfig" />
     <EmbeddedResource Include="Integration\LfsCandidates\Some_Picture_A.png" />
     <EmbeddedResource Include="Integration\LfsCandidates\Some_Picture_B.png" />
-    <None Include="paket.references" />
   </ItemGroup>
-  <Import Project="..\.paket\Paket.Restore.targets" />
+  <ItemGroup>
+    <PackageReference Include="Moq.AutoMock" Version="4.0.2" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>
