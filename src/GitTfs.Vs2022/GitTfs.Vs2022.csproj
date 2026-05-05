@@ -24,9 +24,9 @@
       <Link>Wrappers.cs</Link>
     </Compile>
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\GitTfs\GitTfs.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\GitTfs.Core\GitTfs.Core.csproj" />
+    </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.TeamFoundationServer.ExtendedClient" Version="20.256.2" />
     <PackageReference Include="Microsoft.VisualStudio.Settings.15.0" Version="17.10.34916.79" />

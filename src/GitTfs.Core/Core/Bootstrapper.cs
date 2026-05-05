@@ -1,4 +1,5 @@
-using GitTfs.Commands; // ToGitRefName() and RemoteOptions
+using GitTfs.Commands; // RemoteOptions
+using GitTfs.Util; // ToGitRefName()
 using System.Diagnostics;
 
 namespace GitTfs.Core

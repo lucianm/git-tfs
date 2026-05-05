@@ -19,6 +19,7 @@
   <Project Path="GitTfs.Vs2019/GitTfs.Vs2019.csproj" />
   <Project Path="GitTfs.Vs2022/GitTfs.Vs2022.csproj" />
   <Project Path="GitTfs.VsFake/GitTfs.VsFake.csproj" />
+  <Project Path="GitTfs.Core/GitTfs.Core.csproj" />
   <Project Path="GitTfs/GitTfs.csproj" />
   <Project Path="GitTfsTest/GitTfsTest.csproj" />
   <Project Path="NDesk.Options/NDesk.Options.csproj" />

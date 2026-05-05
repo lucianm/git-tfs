@@ -25,7 +25,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GitTfs\GitTfs.csproj" />
+    <ProjectReference Include="..\GitTfs.Core\GitTfs.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.TeamFoundationServer.ExtendedClient" Version="20.256.2" />
