@@ -130,6 +130,10 @@ namespace GitTfs
             var tfsPlugin = TfsPlugin.Find();
             initializer.Scan(x => { Initialize(x); tfsPlugin.Initialize(x); });
             initializer.For<IGitRepository>().Add<GitRepository>();
+            initializer.For<IHelpHelper>().Add<HelpHelper>();
+            initializer.For<IGitTfsVersionProvider>().Add<GitTfsVersionProvider>();
+            initializer.For<IGitHelpers>().Add<GitHelpers>();
+            initializer.For<IGitTfsRemote>().Add<GitTfsRemote>();
             AddGitChangeTypes(initializer);
             DoCustomConfiguration(initializer);
             tfsPlugin.Initialize(initializer);
