@@ -1,5 +1,5 @@
-﻿using GitTfs.Commands;
 using GitTfs.Core;
+using GitTfs.Util;
 using Xunit;
 
 namespace GitTfs.Test.Commands

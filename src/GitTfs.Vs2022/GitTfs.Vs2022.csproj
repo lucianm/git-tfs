@@ -24,11 +24,13 @@
       <Link>Wrappers.cs</Link>
     </Compile>
   </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\GitTfs.Core\GitTfs.Core.csproj" />
+    </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GitTfs\GitTfs.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Microsoft.TeamFoundationServer.ExtendedClient" Version="20.256.2" />
+    <PackageReference Include="Microsoft.VisualStudio.Settings.15.0" Version="17.10.34916.79" />
+    <PackageReference Include="Microsoft.VisualStudio.Setup.Configuration.Interop" Version="3.14.2075" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
@@ -37,5 +39,4 @@
     <Exec Command="xcopy /y /I &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)GitTfs\$(OutDir)$(ProjectName)&quot; /EXCLUDE:..\build\files_to_ignore_during_post_build_copy.txt" />
     <Exec Command="xcopy /y /I &quot;$(TargetDir)*.pdb&quot; &quot;$(SolutionDir)GitTfs\$(OutDir)$(ProjectName)&quot; /EXCLUDE:..\build\files_to_ignore_during_post_build_copy.txt" />
   </Target>
-  <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

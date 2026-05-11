@@ -1,7 +1,7 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using NDesk.Options;
 using GitTfs.Core;
-using StructureMap;
+using GitTfs.Util;
 using System.Diagnostics;
 
 namespace GitTfs.Commands

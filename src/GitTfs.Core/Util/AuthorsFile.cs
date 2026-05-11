@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using GitTfs.Core;
 using System.Diagnostics;
 
@@ -35,7 +35,7 @@ namespace GitTfs.Util
         #endregion
     }
 
-    [StructureMapSingleton]
+
     public class AuthorsFile
     {
         private readonly Dictionary<string, Author> _authorsByTfsUserId = new Dictionary<string, Author>(StringComparer.OrdinalIgnoreCase);

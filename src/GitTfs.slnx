@@ -1,0 +1,26 @@
+<Solution>
+  <Configurations>
+    <Platform Name="AnyCPU" />
+  </Configurations>
+  <Folder Name="/build/">
+    <File Path="../appveyor.yml" />
+    <File Path="build.cake" />
+    <File Path="build.ps1" />
+  </Folder>
+  <Folder Name="/ChocolateyTemplates/">
+    <File Path="build/ChocolateyTemplates/chocolateyInstall.ps1" />
+    <File Path="build/ChocolateyTemplates/gittfs.nuspec" />
+  </Folder>
+  <Folder Name="/doc/">
+    <File Path="../doc/release-notes/NEXT.md" />
+    <File Path="../doc/running-the-unit-tests.md" />
+    <File Path="../README.md" />
+  </Folder>
+  <Project Path="GitTfs.Vs2019/GitTfs.Vs2019.csproj" />
+  <Project Path="GitTfs.Vs2022/GitTfs.Vs2022.csproj" />
+  <Project Path="GitTfs.VsFake/GitTfs.VsFake.csproj" />
+  <Project Path="GitTfs.Core/GitTfs.Core.csproj" />
+  <Project Path="GitTfs/GitTfs.csproj" />
+  <Project Path="GitTfsTest/GitTfsTest.csproj" />
+  <Project Path="NDesk.Options/NDesk.Options.csproj" />
+</Solution>

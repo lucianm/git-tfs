@@ -1,10 +1,8 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using NDesk.Options;
-using GitTfs.Util;
 
 namespace GitTfs.Commands
 {
-    [StructureMapSingleton]
     public class CheckinOptions
     {
         public OptionSet OptionSet => new OptionSet

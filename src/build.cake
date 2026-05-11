@@ -120,13 +120,6 @@ Task("Clean").Description("Clean the working directory")
 	});
 });
 
-Task("Restore-NuGet-Packages").Description("Restore nuget dependencies (with paket)")
-	.Does(() =>
-{
-	StartProcess(FileExists("paket.exe") ? "paket.exe" : @".paket\paket.exe", "restore");
-	StartProcess("dotnet", $"restore {PathToSln}");
-});
-
 Task("Version").Description("Get the version using GitVersion")
 	.Does(() =>
 {
@@ -188,7 +181,6 @@ Task("UpdateAssemblyInfo").Description("Update AssemblyInfo properties with the 
 });
 
 Task("Build").Description("Build git-tfs")
-	.IsDependentOn("Restore-NuGet-Packages")
 	.IsDependentOn("UpdateAssemblyInfo")
 	.Does(() =>
 {

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Net;
 using System.Reflection;
 using Microsoft.TeamFoundation.Client;
@@ -8,7 +8,6 @@ using Microsoft.Win32;
 using GitTfs.Commands;
 using GitTfs.Core;
 using GitTfs.Core.TfsInterop;
-using GitTfs.Extensions;
 using GitTfs.Util;
 using StructureMap;
 using StructureMap.Attributes;

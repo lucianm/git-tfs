@@ -6,10 +6,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GitTfs\GitTfs.csproj" />
+    <ProjectReference Include="..\GitTfs.Core\GitTfs.Core.csproj" />
   </ItemGroup>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="xcopy /y /I &quot;$(TargetPath)&quot; &quot;$(SolutionDir)GitTfs\$(OutDir)*&quot;" />
   </Target>
-  <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

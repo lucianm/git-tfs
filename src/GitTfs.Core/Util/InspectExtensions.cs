@@ -1,7 +1,7 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Text.RegularExpressions;
 
-namespace GitTfs.Extensions
+namespace GitTfs.Util
 {
     public static class InspectExtensions
     {

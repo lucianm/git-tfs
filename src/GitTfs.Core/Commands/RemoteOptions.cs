@@ -1,9 +1,7 @@
-using GitTfs.Util;
 using NDesk.Options;
 
 namespace GitTfs.Commands
 {
-    [StructureMapSingleton]
     public class RemoteOptions
     {
         public OptionSet OptionSet => new OptionSet
